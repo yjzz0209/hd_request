@@ -1,0 +1,31 @@
+"use client";
+
+import { useState } from "react";
+import { Field, TextArea, PrimaryButton } from "../ui";
+
+export function EtcForm({
+  onSubmit,
+  submitting,
+}: {
+  onSubmit: (detail: any, summary: string) => void;
+  submitting: boolean;
+}) {
+  const [content, setContent] = useState("");
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    onSubmit({ content }, content.slice(0, 80));
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <Field label="요청 내용">
+        <TextArea required value={content} onChange={(e) => setContent(e.target.value)} placeholder="자유롭게 요청 내용을 입력해주세요." />
+      </Field>
+      <p className="text-xs text-neutral-400">제출하시면 내용 확인 후 담당자가 상세 연락드리겠습니다.</p>
+      <PrimaryButton type="submit" disabled={submitting}>
+        {submitting ? "제출 중..." : "요청 제출"}
+      </PrimaryButton>
+    </form>
+  );
+}
