@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabaseServer";
 
+// build cache 재확인용 재커밋 (2026-08-26)
+
 // POST /api/upload (multipart/form-data, field name: file / title / label)
 // Supabase Storage에 원본 파일 그대로 업로드하고 공개 URL을 돌려줍니다.
 // 엑셀 셀에 이미지를 직접 넣지 않고, 스토리지 폴더에 파일로 보관한 뒤
@@ -15,6 +17,14 @@ function sanitize(part: string) {
     .replace(/[\\/:*?"<>|]/g, "") // 파일 경로에 쓸 수 없는 문자 제거
     .replace(/\s+/g, "_")
     .slice(0, 60);
+}
+
+// Supabase Storage의 객체 키(경로)는 영문/숫자와 일부 기호만 허용하고
+// 한글 등 비ASCII 문자가 들어가면 "Invalid key" 오류로 업로드가 거부됩니다.
+// 그래서 실제 저장 경로는 ASCII로만 구성하고, 사람이 보는 원본 제목/구분/
+// 파일명은 아래 metadata에 그대로 담아 Supabase 대시보드에서 확인할 수 있게 합니다.
+function asciiSafe(part: string) {
+  return part.replace(/[^A-Za-z0-9_\-.]/g, "");
 }
 
 function todayStamp() {
@@ -43,7 +53,9 @@ export async function POST(req: NextRequest) {
 
   const ext = file.name.includes(".") ? file.name.split(".").pop() : "";
   const uniqueSuffix = crypto.randomUUID().slice(0, 8);
-  const baseName = [todayStamp(), sanitize(title), sanitize(label)].filter(Boolean).join("_");
+  const safeTitle = asciiSafe(sanitize(title));
+  const safeLabel = asciiSafe(sanitize(label));
+  const baseName = [todayStamp(), safeTitle, safeLabel].filter(Boolean).join("_");
   const path = `uploads/${baseName}_${uniqueSuffix}${ext ? "." + ext : ""}`;
 
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -51,6 +63,13 @@ export async function POST(req: NextRequest) {
   const { error } = await supabase.storage.from(bucket).upload(path, buffer, {
     contentType: file.type,
     upsert: false,
+    // 원본 제목/구분/파일명(한글 포함)은 metadata로 보관 — Supabase 대시보드의
+    // 파일 상세 정보에서 확인할 수 있습니다.
+    metadata: {
+      title,
+      label,
+      originalFileName: file.name,
+    },
   });
 
   if (error) {
