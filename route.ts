@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabaseServer";
 
+// build cache 재확인용 재커밋 (2026-08-26)
+
 // POST /api/upload (multipart/form-data, field name: file / title / label)
 // Supabase Storage에 원본 파일 그대로 업로드하고 공개 URL을 돌려줍니다.
 // 엑셀 셀에 이미지를 직접 넣지 않고, 스토리지 폴더에 파일로 보관한 뒤
