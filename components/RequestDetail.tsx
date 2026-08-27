@@ -13,11 +13,40 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+// 클릭하면 새 탭에서 여는 대신 파일을 바로 다운로드합니다.
+// (원본 URL로 그냥 이동하면 브라우저가 이미지를 새 탭에 띄우기만 하고 저장은 안 시켜줘서,
+// 파일을 직접 받아온 뒤 다운로드를 강제로 트리거합니다.)
+async function downloadFile(url: string) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const fileName = decodeURIComponent(url.split("/").pop()?.split("?")[0] ?? "file");
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  } catch {
+    // 다운로드가 막힌 환경이면 최소한 원본 파일은 볼 수 있도록 새 탭으로 엽니다.
+    window.open(url, "_blank");
+  }
+}
+
 function FileLink({ url }: { url?: string | null }) {
   if (!url) return null;
   return (
-    <a href={url} target="_blank" rel="noreferrer" className="text-[#12806f] underline">
-      파일 보기
+    <a
+      href={url}
+      onClick={(e) => {
+        e.preventDefault();
+        downloadFile(url);
+      }}
+      className="cursor-pointer text-[#12806f] underline"
+    >
+      파일 다운로드
     </a>
   );
 }

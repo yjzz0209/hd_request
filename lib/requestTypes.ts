@@ -65,6 +65,7 @@ export const STATUS_LABEL: Record<string, string> = {
   pending: "대기",
   in_progress: "처리중",
   done: "완료",
+  rejected: "반려",
 };
 
 // 신규 상품 등록/상품 정보 변경 요청이 공유하는 필드 목록 (4-1, 4-2)

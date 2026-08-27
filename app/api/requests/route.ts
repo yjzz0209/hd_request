@@ -10,7 +10,9 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("requests")
-    .select("id, request_no, team_id, target_team_id, requester_name, request_type, status, created_at, erp_doc_no")
+    .select(
+      "id, request_no, team_id, target_team_id, requester_name, request_type, status, created_at, completed_at, erp_doc_no"
+    )
     .order("created_at", { ascending: false });
 
   if (team) {
