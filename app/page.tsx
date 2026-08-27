@@ -70,6 +70,9 @@ export default function StartPage() {
       <a href="/requests" className="text-center text-sm text-neutral-400 underline">
         내 요청 이력 조회
       </a>
+      <a href="/admin" className="text-center text-sm text-neutral-400 underline">
+        전체 요청 보기
+      </a>
     </main>
   );
 }
