@@ -1,8 +1,9 @@
 "use client";
 
 import { Fragment, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { STATUS_LABEL, teamName, typeLabel } from "@/lib/requestTypes";
-import { TextInput, PrimaryButton, Select } from "@/components/ui";
+import { TextInput, PrimaryButton, GhostButton, Select } from "@/components/ui";
 import { RequestDetail } from "@/components/RequestDetail";
 
 type RequestRow = {
@@ -14,6 +15,7 @@ type RequestRow = {
   request_type: string;
   status: string;
   created_at: string;
+  completed_at: string | null;
   erp_doc_no: string | null;
 };
 
@@ -22,6 +24,7 @@ const ADMIN_KEY = "hd-admin-password";
 // 6. 관리자 화면 (기획 문서 2장-6, 3장-5)
 // 별도 로그인 체계 없이, ADMIN_PASSWORD 환경변수 값으로만 간단히 보호합니다.
 export default function AdminPage() {
+  const router = useRouter();
   const [password, setPassword] = useState("");
   const [authed, setAuthed] = useState(false);
   const [rows, setRows] = useState<RequestRow[]>([]);
@@ -29,6 +32,7 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [detailById, setDetailById] = useState<Record<number, any>>({});
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const saved = sessionStorage.getItem(ADMIN_KEY);
@@ -61,6 +65,37 @@ export default function AdminPage() {
       fetch(`/api/requests/${id}`)
         .then((r) => r.json())
         .then((data) => setDetailById((prev) => ({ ...prev, [id]: data.detail })));
+    }
+  }
+
+  async function handleExport() {
+    setError("");
+    setExporting(true);
+    try {
+      const res = await fetch("/api/requests/export", {
+        headers: { "x-admin-password": password },
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          sessionStorage.removeItem(ADMIN_KEY);
+          setAuthed(false);
+          return;
+        }
+        setError("엑셀 다운로드에 실패했습니다.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      a.href = url;
+      a.download = `hd_requests_${today}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -107,8 +142,21 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 px-6 py-10">
-      <h1 className="text-xl font-semibold text-neutral-900">전체 요청 관리</h1>
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-6 py-10">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-neutral-900">전체 요청 관리</h1>
+        <div className="flex gap-2">
+          <GhostButton type="button" onClick={() => router.back()}>
+            뒤로가기
+          </GhostButton>
+          <GhostButton type="button" onClick={() => router.push("/")}>
+            홈으로 가기
+          </GhostButton>
+          <PrimaryButton type="button" onClick={handleExport} disabled={exporting}>
+            {exporting ? "다운로드 중..." : "엑셀 다운로드"}
+          </PrimaryButton>
+        </div>
+      </div>
 
       {error && <p className="rounded-lg bg-[#fdeeee] px-3 py-2 text-sm text-[#d0492e]">{error}</p>}
       {loading && <p className="text-sm text-neutral-400">불러오는 중...</p>}
@@ -123,6 +171,7 @@ export default function AdminPage() {
               <th className="py-2 pr-4">담당자</th>
               <th className="py-2 pr-4">유형</th>
               <th className="py-2 pr-4">등록일시</th>
+              <th className="py-2 pr-4">종료일시</th>
               <th className="py-2 pr-4">전자결재</th>
               <th className="py-2 pr-4">상태</th>
             </tr>
@@ -143,18 +192,24 @@ export default function AdminPage() {
                   <td className="py-2 pr-4">{r.requester_name}</td>
                   <td className="py-2 pr-4">{typeLabel(r.request_type)}</td>
                   <td className="py-2 pr-4 text-neutral-500">{new Date(r.created_at).toLocaleString("ko-KR")}</td>
+                  <td className="py-2 pr-4 text-neutral-500">
+                    {r.completed_at
+                      ? `${r.status === "rejected" ? "반려" : "완료"} ${new Date(r.completed_at).toLocaleString("ko-KR")}`
+                      : "-"}
+                  </td>
                   <td className="py-2 pr-4 text-neutral-500">{r.erp_doc_no ?? "-"}</td>
                   <td className="py-2 pr-4" onClick={(e) => e.stopPropagation()}>
                     <Select value={r.status} onChange={(e) => updateStatus(r.id, e.target.value)}>
                       <option value="pending">{STATUS_LABEL.pending}</option>
                       <option value="in_progress">{STATUS_LABEL.in_progress}</option>
                       <option value="done">{STATUS_LABEL.done}</option>
+                      <option value="rejected">{STATUS_LABEL.rejected}</option>
                     </Select>
                   </td>
                 </tr>
                 {expandedId === r.id && (
                   <tr className="border-b border-neutral-100 bg-[#f0f1f2]/40">
-                    <td colSpan={8} className="px-4 py-3">
+                    <td colSpan={9} className="px-4 py-3">
                       <RequestDetail requestType={r.request_type} detail={detailById[r.id]} />
                     </td>
                   </tr>

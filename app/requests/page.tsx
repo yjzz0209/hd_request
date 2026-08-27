@@ -14,6 +14,7 @@ type RequestRow = {
   request_type: string;
   status: string;
   created_at: string;
+  completed_at: string | null;
   erp_doc_no: string | null;
 };
 
@@ -21,6 +22,7 @@ const STATUS_STYLE: Record<string, string> = {
   pending: "bg-[#f0f1f2] text-[#8a8f96]",
   in_progress: "bg-[#12806f]/10 text-[#12806f]",
   done: "bg-[#2fbf9f]/15 text-[#12806f]",
+  rejected: "bg-[#fdeeee] text-[#d0492e]",
 };
 
 // 5. 요청 조회 화면 (기획 문서 2장-5, 3장-4)
@@ -101,6 +103,12 @@ export default function RequestsPage() {
                 </p>
                 <p className="mt-0.5 text-xs text-neutral-500">
                   {r.requester_name} · {new Date(r.created_at).toLocaleString("ko-KR")}
+                  {r.completed_at && (
+                    <>
+                      {" "}
+                      · {r.status === "rejected" ? "반려" : "완료"} {new Date(r.completed_at).toLocaleString("ko-KR")}
+                    </>
+                  )}
                 </p>
               </div>
               <div className="flex items-center gap-3">
