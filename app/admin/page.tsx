@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { STATUS_LABEL, teamName, typeLabel } from "@/lib/requestTypes";
 import { TextInput, PrimaryButton, Select } from "@/components/ui";
+import { RequestDetail } from "@/components/RequestDetail";
 
 type RequestRow = {
   id: number;
@@ -26,6 +27,8 @@ export default function AdminPage() {
   const [rows, setRows] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [detailById, setDetailById] = useState<Record<number, any>>({});
 
   useEffect(() => {
     const saved = sessionStorage.getItem(ADMIN_KEY);
@@ -46,6 +49,19 @@ export default function AdminPage() {
       .then((r) => r.json())
       .then((data) => setRows(data.requests ?? []))
       .finally(() => setLoading(false));
+  }
+
+  function toggleExpand(id: number) {
+    if (expandedId === id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(id);
+    if (!detailById[id]) {
+      fetch(`/api/requests/${id}`)
+        .then((r) => r.json())
+        .then((data) => setDetailById((prev) => ({ ...prev, [id]: data.detail })));
+    }
   }
 
   function handleLogin(e: React.FormEvent) {
@@ -113,22 +129,37 @@ export default function AdminPage() {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id} className="border-b border-neutral-100">
-                <td className="py-2 pr-4">{r.request_no}</td>
-                <td className="py-2 pr-4">{teamName(r.team_id)}</td>
-                <td className="py-2 pr-4">{teamName(r.target_team_id)}</td>
-                <td className="py-2 pr-4">{r.requester_name}</td>
-                <td className="py-2 pr-4">{typeLabel(r.request_type)}</td>
-                <td className="py-2 pr-4 text-neutral-500">{new Date(r.created_at).toLocaleString("ko-KR")}</td>
-                <td className="py-2 pr-4 text-neutral-500">{r.erp_doc_no ?? "-"}</td>
-                <td className="py-2 pr-4">
-                  <Select value={r.status} onChange={(e) => updateStatus(r.id, e.target.value)}>
-                    <option value="pending">{STATUS_LABEL.pending}</option>
-                    <option value="in_progress">{STATUS_LABEL.in_progress}</option>
-                    <option value="done">{STATUS_LABEL.done}</option>
-                  </Select>
-                </td>
-              </tr>
+              <Fragment key={r.id}>
+                <tr
+                  onClick={() => toggleExpand(r.id)}
+                  className="cursor-pointer border-b border-neutral-100 hover:bg-[#f0f1f2]"
+                >
+                  <td className="py-2 pr-4">
+                    <span className="mr-1 text-neutral-400">{expandedId === r.id ? "▲" : "▼"}</span>
+                    {r.request_no}
+                  </td>
+                  <td className="py-2 pr-4">{teamName(r.team_id)}</td>
+                  <td className="py-2 pr-4">{teamName(r.target_team_id)}</td>
+                  <td className="py-2 pr-4">{r.requester_name}</td>
+                  <td className="py-2 pr-4">{typeLabel(r.request_type)}</td>
+                  <td className="py-2 pr-4 text-neutral-500">{new Date(r.created_at).toLocaleString("ko-KR")}</td>
+                  <td className="py-2 pr-4 text-neutral-500">{r.erp_doc_no ?? "-"}</td>
+                  <td className="py-2 pr-4" onClick={(e) => e.stopPropagation()}>
+                    <Select value={r.status} onChange={(e) => updateStatus(r.id, e.target.value)}>
+                      <option value="pending">{STATUS_LABEL.pending}</option>
+                      <option value="in_progress">{STATUS_LABEL.in_progress}</option>
+                      <option value="done">{STATUS_LABEL.done}</option>
+                    </Select>
+                  </td>
+                </tr>
+                {expandedId === r.id && (
+                  <tr className="border-b border-neutral-100 bg-[#f0f1f2]/40">
+                    <td colSpan={8} className="px-4 py-3">
+                      <RequestDetail requestType={r.request_type} detail={detailById[r.id]} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>

@@ -73,6 +73,8 @@ export async function POST(req: NextRequest) {
       requestType,
       createdAt: new Date(request.created_at).toLocaleString("ko-KR"),
       summary: summary ?? "",
+      erpDocNo: erpDocNo || null,
+      detail,
     });
   } catch (e) {
     console.error("[email] 알림 발송 실패", e);
