@@ -39,7 +39,7 @@ export async function sendRequestNotification(params: {
   `;
 
   return resend.emails.send({
-    from: "업무협조요청시스템 <onboarding@resend.dev>",
+    from: "업무협조요청시스템 <noreply@today-pharm.co.kr>",
     to,
     subject: `[업무협조요청] ${typeLabel(params.requestType)} - ${teamName(
       params.teamId
