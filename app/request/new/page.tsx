@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loadSession, SessionInfo } from "@/lib/session";
 import { typeLabel, teamName } from "@/lib/requestTypes";
+import { Field, TextInput } from "@/components/ui";
 import { NewProductForm } from "@/components/forms/NewProductForm";
 import { ProductChangeForm } from "@/components/forms/ProductChangeForm";
 import { PopupForm } from "@/components/forms/PopupForm";
@@ -11,6 +12,11 @@ import { BannerForm } from "@/components/forms/BannerForm";
 import { PackageForm } from "@/components/forms/PackageForm";
 import { EtcForm } from "@/components/forms/EtcForm";
 import { OrderCancelForm } from "@/components/forms/OrderCancelForm";
+import { PharmacyInfoChangeForm } from "@/components/forms/PharmacyInfoChangeForm";
+import { ExceptionOrderShipmentForm } from "@/components/forms/ExceptionOrderShipmentForm";
+import { HolidaySettingForm } from "@/components/forms/HolidaySettingForm";
+import { SoldoutProcessingForm } from "@/components/forms/SoldoutProcessingForm";
+import { PopupTakedownForm } from "@/components/forms/PopupTakedownForm";
 
 // 3. 요청 작성 화면 (기획 문서 2장-3, 3장-2)
 function NewRequestContent() {
@@ -20,6 +26,7 @@ function NewRequestContent() {
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [erpDocNo, setErpDocNo] = useState("");
 
   useEffect(() => {
     const s = loadSession();
@@ -45,6 +52,7 @@ function NewRequestContent() {
           requestType: type,
           detail,
           summary,
+          erpDocNo: erpDocNo || null,
         }),
       });
       const data = await res.json();
@@ -73,6 +81,10 @@ function NewRequestContent() {
         <p className="rounded-lg bg-[#fdeeee] px-3 py-2 text-sm text-[#d0492e]">{error}</p>
       )}
 
+      <Field label="전자결재 문서번호" hint="필수 입력은 아닙니다. 있는 경우에만 입력하세요.">
+        <TextInput value={erpDocNo} onChange={(e) => setErpDocNo(e.target.value)} />
+      </Field>
+
       {type === "new_product" && <NewProductForm onSubmit={handleSubmit} submitting={submitting} />}
       {type === "product_change" && <ProductChangeForm onSubmit={handleSubmit} submitting={submitting} />}
       {type === "popup" && <PopupForm onSubmit={handleSubmit} submitting={submitting} />}
@@ -80,6 +92,17 @@ function NewRequestContent() {
       {type === "package" && <PackageForm onSubmit={handleSubmit} submitting={submitting} />}
       {type === "etc" && <EtcForm onSubmit={handleSubmit} submitting={submitting} />}
       {type === "order_cancel" && <OrderCancelForm onSubmit={handleSubmit} submitting={submitting} />}
+      {type === "pharmacy_info_change" && (
+        <PharmacyInfoChangeForm onSubmit={handleSubmit} submitting={submitting} />
+      )}
+      {type === "exception_order_shipment" && (
+        <ExceptionOrderShipmentForm onSubmit={handleSubmit} submitting={submitting} />
+      )}
+      {type === "holiday_setting" && <HolidaySettingForm onSubmit={handleSubmit} submitting={submitting} />}
+      {type === "soldout_processing" && (
+        <SoldoutProcessingForm onSubmit={handleSubmit} submitting={submitting} />
+      )}
+      {type === "popup_takedown" && <PopupTakedownForm onSubmit={handleSubmit} submitting={submitting} />}
 
       <button type="button" onClick={() => router.push("/request-type")} className="text-sm text-neutral-400 underline">
         이전으로

@@ -8,10 +8,12 @@ type RequestRow = {
   id: number;
   request_no: string;
   team_id: string;
+  target_team_id: string;
   requester_name: string;
   request_type: string;
   status: string;
   created_at: string;
+  erp_doc_no: string | null;
 };
 
 const ADMIN_KEY = "hd-admin-password";
@@ -100,10 +102,12 @@ export default function AdminPage() {
           <thead>
             <tr className="border-b border-neutral-200 text-neutral-500">
               <th className="py-2 pr-4">요청번호</th>
-              <th className="py-2 pr-4">팀</th>
+              <th className="py-2 pr-4">보낸 팀</th>
+              <th className="py-2 pr-4">받는 팀</th>
               <th className="py-2 pr-4">담당자</th>
               <th className="py-2 pr-4">유형</th>
               <th className="py-2 pr-4">등록일시</th>
+              <th className="py-2 pr-4">전자결재</th>
               <th className="py-2 pr-4">상태</th>
             </tr>
           </thead>
@@ -112,9 +116,11 @@ export default function AdminPage() {
               <tr key={r.id} className="border-b border-neutral-100">
                 <td className="py-2 pr-4">{r.request_no}</td>
                 <td className="py-2 pr-4">{teamName(r.team_id)}</td>
+                <td className="py-2 pr-4">{teamName(r.target_team_id)}</td>
                 <td className="py-2 pr-4">{r.requester_name}</td>
                 <td className="py-2 pr-4">{typeLabel(r.request_type)}</td>
                 <td className="py-2 pr-4 text-neutral-500">{new Date(r.created_at).toLocaleString("ko-KR")}</td>
+                <td className="py-2 pr-4 text-neutral-500">{r.erp_doc_no ?? "-"}</td>
                 <td className="py-2 pr-4">
                   <Select value={r.status} onChange={(e) => updateStatus(r.id, e.target.value)}>
                     <option value="pending">{STATUS_LABEL.pending}</option>

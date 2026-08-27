@@ -2,16 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { TEAMS, STATUS_LABEL, typeLabel } from "@/lib/requestTypes";
+import { TEAMS, STATUS_LABEL, typeLabel, teamName } from "@/lib/requestTypes";
+import { RequestDetail } from "@/components/RequestDetail";
 
 type RequestRow = {
   id: number;
   request_no: string;
   team_id: string;
+  target_team_id: string;
   requester_name: string;
   request_type: string;
   status: string;
   created_at: string;
+  erp_doc_no: string | null;
 };
 
 const STATUS_STYLE: Record<string, string> = {
@@ -26,6 +29,8 @@ export default function RequestsPage() {
   const [teamId, setTeamId] = useState("");
   const [rows, setRows] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [detailById, setDetailById] = useState<Record<number, any>>({});
 
   useEffect(() => {
     if (!teamId) return;
@@ -35,6 +40,19 @@ export default function RequestsPage() {
       .then((data) => setRows(data.requests ?? []))
       .finally(() => setLoading(false));
   }, [teamId]);
+
+  function toggleExpand(id: number) {
+    if (expandedId === id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(id);
+    if (!detailById[id]) {
+      fetch(`/api/requests/${id}`)
+        .then((r) => r.json())
+        .then((data) => setDetailById((prev) => ({ ...prev, [id]: data.detail })));
+    }
+  }
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 py-10">
@@ -68,18 +86,38 @@ export default function RequestsPage() {
 
       <div className="flex flex-col gap-2">
         {rows.map((r) => (
-          <div key={r.id} className="flex items-center justify-between rounded-lg border border-neutral-200 px-4 py-3">
-            <div>
-              <p className="text-sm font-medium text-neutral-900">
-                {typeLabel(r.request_type)} <span className="text-neutral-400">· {r.request_no}</span>
-              </p>
-              <p className="mt-0.5 text-xs text-neutral-500">
-                {r.requester_name} · {new Date(r.created_at).toLocaleString("ko-KR")}
-              </p>
-            </div>
-            <span className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLE[r.status]}`}>
-              {STATUS_LABEL[r.status]}
-            </span>
+          <div key={r.id} className="rounded-lg border border-neutral-200">
+            <button
+              type="button"
+              onClick={() => toggleExpand(r.id)}
+              className="flex w-full items-center justify-between px-4 py-3 text-left"
+            >
+              <div>
+                <p className="text-sm font-medium text-neutral-900">
+                  {typeLabel(r.request_type)} <span className="text-neutral-400">· {r.request_no}</span>
+                  {r.team_id === "distribution" && (
+                    <span className="ml-1 text-neutral-400">→ {teamName(r.target_team_id)}</span>
+                  )}
+                </p>
+                <p className="mt-0.5 text-xs text-neutral-500">
+                  {r.requester_name} · {new Date(r.created_at).toLocaleString("ko-KR")}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLE[r.status]}`}>
+                  {STATUS_LABEL[r.status]}
+                </span>
+                <span className="text-neutral-400">{expandedId === r.id ? "▲" : "▼"}</span>
+              </div>
+            </button>
+            {expandedId === r.id && (
+              <div className="border-t border-neutral-100 px-4 py-3">
+                {r.erp_doc_no && (
+                  <p className="mb-2 text-xs text-neutral-500">전자결재 문서번호 · {r.erp_doc_no}</p>
+                )}
+                <RequestDetail requestType={r.request_type} detail={detailById[r.id]} />
+              </div>
+            )}
           </div>
         ))}
       </div>

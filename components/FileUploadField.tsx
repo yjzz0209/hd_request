@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Field } from "./ui";
 
 // 첨부파일 정책(오픈 이슈 6-4): 파일당 20MB 이내
@@ -20,6 +20,7 @@ export function FileUploadField({
 }) {
   const [status, setStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [fileName, setFileName] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -45,7 +46,25 @@ export function FileUploadField({
 
   return (
     <Field label={label}>
-      <input type="file" accept={accept} onChange={handleChange} className="text-sm" />
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        onChange={handleChange}
+        className="hidden"
+      />
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="shrink-0 rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 transition hover:border-[#12806f] hover:text-[#12806f]"
+        >
+          파일 찾기
+        </button>
+        <span className="truncate text-sm text-neutral-500">
+          {fileName || "선택된 파일 없음"}
+        </span>
+      </div>
       {status === "uploading" && <p className="text-xs text-neutral-400">업로드 중...</p>}
       {status === "done" && <p className="text-xs text-[#12806f]">{fileName} 업로드 완료</p>}
       {status === "error" && <p className="text-xs text-[#d0492e]">업로드에 실패했습니다.</p>}

@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex min-w-0 flex-col gap-1.5">
       <label className="text-sm font-medium text-neutral-700">{label}</label>
       {children}
       {hint && <p className="text-xs text-neutral-400">{hint}</p>}
@@ -17,7 +17,7 @@ export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...props}
       className={
-        "rounded-lg border border-neutral-300 px-3 py-2.5 text-sm outline-none focus:border-[#12806f] " +
+        "w-full min-w-0 rounded-lg border border-neutral-300 px-3 py-2.5 text-sm outline-none focus:border-[#12806f] " +
         (props.className ?? "")
       }
     />
@@ -29,7 +29,7 @@ export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
     <textarea
       {...props}
       className={
-        "min-h-24 rounded-lg border border-neutral-300 px-3 py-2.5 text-sm outline-none focus:border-[#12806f] " +
+        "min-h-24 w-full min-w-0 rounded-lg border border-neutral-300 px-3 py-2.5 text-sm outline-none focus:border-[#12806f] " +
         (props.className ?? "")
       }
     />
@@ -41,7 +41,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
     <select
       {...props}
       className={
-        "rounded-lg border border-neutral-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#12806f] " +
+        "w-full min-w-0 rounded-lg border border-neutral-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#12806f] " +
         (props.className ?? "")
       }
     />

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabaseServer";
 import { sendRequestNotification } from "@/lib/email";
+import { targetTeamFor } from "@/lib/requestTypes";
 
 // GET /api/requests?team=marketing  -> 조회 화면에서 사용 (3-4)
 export async function GET(req: NextRequest) {
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("requests")
-    .select("id, request_no, team_id, requester_name, request_type, status, created_at")
+    .select("id, request_no, team_id, target_team_id, requester_name, request_type, status, created_at, erp_doc_no")
     .order("created_at", { ascending: false });
 
   if (team) {
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
 // body: { teamId, requesterName, requestType, detail: {...}, summary }
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { teamId, requesterName, requestType, detail, summary } = body;
+  const { teamId, requesterName, requestType, detail, summary, erpDocNo } = body;
 
   if (!teamId || !requesterName || !requestType || !detail) {
     return NextResponse.json({ error: "필수 값이 누락되었습니다." }, { status: 400 });
@@ -38,7 +39,13 @@ export async function POST(req: NextRequest) {
   // 1) 공통 정보 저장
   const { data: request, error: requestError } = await supabase
     .from("requests")
-    .insert({ team_id: teamId, requester_name: requesterName, request_type: requestType })
+    .insert({
+      team_id: teamId,
+      target_team_id: targetTeamFor(requestType),
+      requester_name: requesterName,
+      request_type: requestType,
+      erp_doc_no: erpDocNo || null,
+    })
     .select()
     .single();
 
@@ -168,6 +175,56 @@ async function saveDetail(
         if (itemError) return itemError.message;
       }
       return null;
+    }
+
+    case "pharmacy_info_change": {
+      const { items, ...rest } = detail;
+      if (!Array.isArray(items) || items.length === 0) {
+        return "변경할 항목을 1개 이상 입력해주세요.";
+      }
+      const { error } = await supabase
+        .from("request_pharmacy_info_change")
+        .insert({ request_id: requestId, ...rest });
+      if (error) return error.message;
+
+      const rows = items.map((i: any) => ({ ...i, request_id: requestId }));
+      const { error: itemError } = await supabase.from("pharmacy_info_change_items").insert(rows);
+      if (itemError) return itemError.message;
+      return null;
+    }
+
+    case "exception_order_shipment": {
+      const { items } = detail;
+      if (!Array.isArray(items) || items.length === 0) {
+        return "출고 요청 항목을 1개 이상 입력해주세요.";
+      }
+      const rows = items.map((i: any) => ({ ...i, request_id: requestId }));
+      const { error } = await supabase.from("exception_order_shipment_items").insert(rows);
+      return error?.message ?? null;
+    }
+
+    case "holiday_setting": {
+      const { error } = await supabase
+        .from("request_holiday_setting")
+        .insert({ request_id: requestId, ...detail });
+      return error?.message ?? null;
+    }
+
+    case "soldout_processing": {
+      const { items } = detail;
+      if (!Array.isArray(items) || items.length === 0) {
+        return "품절 처리할 품목을 1개 이상 입력해주세요.";
+      }
+      const rows = items.map((i: any) => ({ ...i, request_id: requestId }));
+      const { error } = await supabase.from("soldout_items").insert(rows);
+      return error?.message ?? null;
+    }
+
+    case "popup_takedown": {
+      const { error } = await supabase
+        .from("request_popup_takedown")
+        .insert({ request_id: requestId, ...detail });
+      return error?.message ?? null;
     }
 
     default:
