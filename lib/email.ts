@@ -8,6 +8,12 @@ import { teamName, typeLabel } from "./requestTypes";
 //
 // 이미지 파일은 셀에 직접 넣지 않고(스토리지 폴더에 파일로만 저장),
 // 이미지가 저장된 위치를 알 수 있도록 링크(URL) 텍스트만 값으로 넣습니다.
+//
+// 공통+상세 항목 표는 라벨:값 한 쌍씩 세로로 늘어놓지 않고, 한 행에 두 쌍(라벨/값/라벨/값)씩
+// 나란히 배치합니다. 변경 항목·출고 대상 주문처럼 건별 목록이 있는 항목은 이 규칙과 별개로,
+// 값 칸 안에 자체 목록 표를 그대로 담습니다.
+
+type Cell = { label: string; html: string };
 
 function escapeHtml(value: unknown): string {
   if (value === null || value === undefined || value === "") return "";
@@ -17,9 +23,31 @@ function escapeHtml(value: unknown): string {
     .replace(/>/g, "&gt;");
 }
 
-function row(label: string, value: unknown) {
-  const v = escapeHtml(value);
-  return `<tr><td><b>${escapeHtml(label)}</b></td><td>${v || "-"}</td></tr>`;
+// 일반 텍스트 값용. 값을 이스케이프해서 태그가 글자 그대로 보이지 않게 합니다.
+function cell(label: string, value: unknown): Cell {
+  return { label, html: escapeHtml(value) || "-" };
+}
+
+// itemsTable()/fileLinkValue()처럼 이미 안전하게 만들어진 HTML 값용.
+// 여기서 다시 이스케이프하면 표/링크 태그가 글자 그대로 노출되므로 그대로 씁니다.
+function cellRaw(label: string, html: string): Cell {
+  return { label, html: html || "-" };
+}
+
+// 라벨:값 쌍들을 한 행에 두 쌍씩 나란히 배치한 <tr> 목록으로 렌더링합니다.
+function renderCells(cells: (Cell | false | null | undefined)[]): string {
+  const list = cells.filter((c): c is Cell => Boolean(c));
+  const PER_ROW = 2;
+  const rows: string[] = [];
+  for (let i = 0; i < list.length; i += PER_ROW) {
+    const pair = list.slice(i, i + PER_ROW);
+    const tds = pair
+      .map((c) => `<td><b>${escapeHtml(c.label)}</b></td><td>${c.html}</td>`)
+      .join("");
+    const padding = "<td></td><td></td>".repeat(PER_ROW - pair.length);
+    rows.push(`<tr>${tds}${padding}</tr>`);
+  }
+  return rows.join("");
 }
 
 function fileLinkValue(url?: string | null) {
@@ -40,33 +68,49 @@ function itemsTable(items: any[] | undefined, columns: { key: string; label: str
   return `<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;"><tr>${head}</tr>${body}</table>`;
 }
 
+// Power Automate가 이미지를 OneDrive로 복사해 엑셀에 링크를 남길 때 쓰는 목록.
+// 요청 유형과 상관없이 detail 안의 이미지/파일 URL을 전부 모아줍니다.
+function extractImageUrls(detail: any): { label: string; url: string }[] {
+  if (!detail) return [];
+  const out: { label: string; url: string }[] = [];
+  if (detail.image_url) out.push({ label: "이미지", url: detail.image_url });
+  if (detail.description_file_url) out.push({ label: "상세 설명 파일", url: detail.description_file_url });
+  if (detail.business_reg_file_url) out.push({ label: "사업자등록증", url: detail.business_reg_file_url });
+  if (Array.isArray(detail.images)) {
+    for (const img of detail.images) {
+      if (img?.file_url) out.push({ label: img.image_type ?? "이미지", url: img.file_url });
+    }
+  }
+  return out;
+}
+
 const YES_NO = (v: boolean) => (v ? "예" : "아니오");
 const STOCK_TYPE = (v: string) => (v === "by_stock" ? "재고량에 따름" : "무한정 판매");
 const SALE_PERIOD = (v: string) => (v === "fixed" ? "기간 있음" : "제한없음");
 
-// 요청 유형별 상세 항목을 라벨:값 행으로 펼쳐줍니다. (요청 조회 화면의 RequestDetail과 동일한 항목 기준)
-function buildDetailRows(requestType: string, detail: any): string {
-  if (!detail) return "";
+// 요청 유형별 상세 항목을 라벨:값 쌍 목록으로 만들어줍니다. (요청 조회 화면의 RequestDetail과 동일한 항목 기준)
+function buildDetailCells(requestType: string, detail: any): (Cell | false)[] {
+  if (!detail) return [];
 
   switch (requestType) {
     case "new_product":
     case "package": {
       const isPackage = requestType === "package";
-      const rows = [
-        !isPackage && row("자체 상품코드", detail.product_code),
-        row("상품명", detail.product_name),
-        row("과세 여부", detail.is_taxable ? "과세" : "면세"),
-        row("판매 재고 유형", STOCK_TYPE(detail.stock_type)),
-        detail.stock_type === "by_stock" && row("상품 재고", detail.stock_qty),
-        row("묶음 주문 단위", detail.bundle_unit),
-        row("판매기간", SALE_PERIOD(detail.sale_period_type)),
+      return [
+        !isPackage && cell("자체 상품코드", detail.product_code),
+        cell("상품명", detail.product_name),
+        cell("과세 여부", detail.is_taxable ? "과세" : "면세"),
+        cell("판매 재고 유형", STOCK_TYPE(detail.stock_type)),
+        detail.stock_type === "by_stock" && cell("상품 재고", detail.stock_qty),
+        cell("묶음 주문 단위", detail.bundle_unit),
+        cell("판매기간", SALE_PERIOD(detail.sale_period_type)),
         detail.sale_period_type === "fixed" &&
-          row("판매 기간", `${detail.sale_start_date ?? ""} ~ ${detail.sale_end_date ?? ""}`),
-        row("금융비 사용 설정", YES_NO(detail.use_finance_fee)),
-        isPackage && row("할인 판매 총액", detail.total_price),
-        row("상품 상세 설명 문구", fileLinkValue(detail.description_file_url)),
+          cell("판매 기간", `${detail.sale_start_date ?? ""} ~ ${detail.sale_end_date ?? ""}`),
+        cell("금융비 사용 설정", YES_NO(detail.use_finance_fee)),
+        isPackage && cell("할인 판매 총액", detail.total_price),
+        cellRaw("상품 상세 설명 문구", fileLinkValue(detail.description_file_url)),
         !isPackage &&
-          row(
+          cellRaw(
             "수량/등급별 가격 세팅",
             itemsTable(detail.pricing_tiers, [
               { key: "min_qty", label: "최소 수량" },
@@ -75,7 +119,7 @@ function buildDetailRows(requestType: string, detail: any): string {
             ])
           ),
         isPackage &&
-          row(
+          cellRaw(
             "패키지 구성품",
             itemsTable(detail.items, [
               { key: "product_code", label: "상품코드" },
@@ -83,53 +127,54 @@ function buildDetailRows(requestType: string, detail: any): string {
               { key: "allocated_price", label: "배분 금액" },
             ])
           ),
-        row(
+        cellRaw(
           "개별 이미지",
           (detail.images ?? [])
             .map((img: any) => `${escapeHtml(img.image_type)}: ${fileLinkValue(img.file_url)}`)
             .join("<br/>") || "(없음)"
         ),
       ];
-      return rows.filter(Boolean).join("");
     }
 
     case "product_change":
-      return row(
-        "변경 항목",
-        itemsTable(detail.items, [
-          { key: "target_product_code", label: "상품코드" },
-          { key: "field_name", label: "변경 항목" },
-          { key: "old_value", label: "기존 값" },
-          { key: "new_value", label: "변경될 값" },
-        ])
-      );
+      return [
+        cellRaw(
+          "변경 항목",
+          itemsTable(detail.items, [
+            { key: "target_product_code", label: "상품코드" },
+            { key: "field_name", label: "변경 항목" },
+            { key: "old_value", label: "기존 값" },
+            { key: "new_value", label: "변경될 값" },
+          ])
+        ),
+      ];
 
     case "popup":
       return [
-        row("노출 위치", [detail.expose_pc && "PC", detail.expose_mobile && "모바일"].filter(Boolean).join(", ")),
-        row("팝업 제목", detail.title),
-        row("노출 방식", detail.expose_type),
-        row("노출 기간", detail.start_at ? `${detail.start_at} ~ ${detail.end_at ?? ""}` : "항상 노출"),
-        row("오늘 하루 보지 않음", YES_NO(detail.hide_today_option)),
-        row("이미지", fileLinkValue(detail.image_url)),
-        row("이동 링크", detail.link_url),
-      ].join("");
+        cell("노출 위치", [detail.expose_pc && "PC", detail.expose_mobile && "모바일"].filter(Boolean).join(", ")),
+        cell("팝업 제목", detail.title),
+        cell("노출 방식", detail.expose_type),
+        cell("노출 기간", detail.start_at ? `${detail.start_at} ~ ${detail.end_at ?? ""}` : "항상 노출"),
+        cell("오늘 하루 보지 않음", YES_NO(detail.hide_today_option)),
+        cellRaw("이미지", fileLinkValue(detail.image_url)),
+        cell("이동 링크", detail.link_url),
+      ];
 
     case "banner":
       return [
-        row("배너 위치", detail.banner_type),
-        row("배너 제목", detail.title),
-        row("이미지", fileLinkValue(detail.image_url)),
-        row("이동 링크", detail.link_url),
-      ].join("");
+        cell("배너 위치", detail.banner_type),
+        cell("배너 제목", detail.title),
+        cellRaw("이미지", fileLinkValue(detail.image_url)),
+        cell("이동 링크", detail.link_url),
+      ];
 
     case "etc":
-      return row("내용", detail.content);
+      return [cell("내용", detail.content)];
 
     case "order_cancel":
       return [
-        row("취소 사유", detail.reason),
-        row(
+        cell("취소 사유", detail.reason),
+        cellRaw(
           "취소 대상 주문",
           itemsTable(detail.items, [
             { key: "order_no", label: "주문번호" },
@@ -140,15 +185,15 @@ function buildDetailRows(requestType: string, detail: any): string {
             { key: "qty", label: "수량" },
           ])
         ),
-      ].join("");
+      ];
 
     case "pharmacy_info_change":
       return [
-        row("약국명", detail.pharmacy_name),
-        row("약사명", detail.pharmacist_name),
-        row("거래처코드", detail.vendor_code),
-        row("사업자등록증", fileLinkValue(detail.business_reg_file_url)),
-        row(
+        cell("약국명", detail.pharmacy_name),
+        cell("약사명", detail.pharmacist_name),
+        cell("거래처코드", detail.vendor_code),
+        cellRaw("사업자등록증", fileLinkValue(detail.business_reg_file_url)),
+        cellRaw(
           "변경 항목",
           itemsTable(detail.items, [
             { key: "field_name", label: "변경 항목" },
@@ -156,56 +201,60 @@ function buildDetailRows(requestType: string, detail: any): string {
             { key: "new_value", label: "변경될 값" },
           ])
         ),
-      ].join("");
+      ];
 
     case "exception_order_shipment":
-      return row(
-        "출고 대상 주문",
-        itemsTable(detail.items, [
-          { key: "order_no", label: "주문번호" },
-          { key: "item_name", label: "품목명" },
-          { key: "item_code", label: "품목코드" },
-          { key: "qty", label: "출고수량" },
-        ])
-      );
+      return [
+        cellRaw(
+          "출고 대상 주문",
+          itemsTable(detail.items, [
+            { key: "order_no", label: "주문번호" },
+            { key: "item_name", label: "품목명" },
+            { key: "item_code", label: "품목코드" },
+            { key: "qty", label: "출고수량" },
+          ])
+        ),
+      ];
 
     case "holiday_setting":
       return [
-        row(
+        cell(
           "휴무 기간",
           detail.holiday_end_date
             ? `${detail.holiday_start_date} ~ ${detail.holiday_end_date}`
             : detail.holiday_start_date
         ),
-        row("주문 마감 일시", detail.order_cutoff_at),
-        row("출고 재개일", detail.shipment_resume_date),
-      ].join("");
+        cell("주문 마감 일시", detail.order_cutoff_at),
+        cell("출고 재개일", detail.shipment_resume_date),
+      ];
 
     case "soldout_processing":
-      return row(
-        "품절 처리 품목",
-        itemsTable(
-          (detail.items ?? []).map((i: any) => ({
-            ...i,
-            period: i.period_type === "period" ? `${i.start_date ?? ""} ~ ${i.end_date ?? ""}` : "기간 없음",
-          })),
-          [
-            { key: "item_name", label: "품목명" },
-            { key: "item_code", label: "품목코드" },
-            { key: "period", label: "품절 노출 기간" },
-          ]
-        )
-      );
+      return [
+        cellRaw(
+          "품절 처리 품목",
+          itemsTable(
+            (detail.items ?? []).map((i: any) => ({
+              ...i,
+              period: i.period_type === "period" ? `${i.start_date ?? ""} ~ ${i.end_date ?? ""}` : "기간 없음",
+            })),
+            [
+              { key: "item_name", label: "품목명" },
+              { key: "item_code", label: "품목코드" },
+              { key: "period", label: "품절 노출 기간" },
+            ]
+          )
+        ),
+      ];
 
     case "popup_takedown":
       return [
-        row("팝업명", detail.popup_name),
-        row("내리는 사유", detail.reason),
-        row("희망 내리기 일시", detail.desired_takedown_at),
-      ].join("");
+        cell("팝업명", detail.popup_name),
+        cell("내리는 사유", detail.reason),
+        cell("희망 내리기 일시", detail.desired_takedown_at),
+      ];
 
     default:
-      return "";
+      return [];
   }
 }
 
@@ -231,19 +280,47 @@ export async function sendRequestNotification(params: {
 
   const resend = new Resend(apiKey);
 
+  const cells: (Cell | false)[] = [
+    cell("요청번호", params.requestNo),
+    cell("팀", teamName(params.teamId)),
+    cell("담당자", params.requesterName),
+    cell("요청유형", typeLabel(params.requestType)),
+    cell("상태", "대기"),
+    cell("등록일시", params.createdAt),
+    cell("전자결재 문서번호", params.erpDocNo),
+    cell("요약", params.summary),
+    ...buildDetailCells(params.requestType, params.detail),
+  ];
+
+  // Power Automate가 표를 긁어 읽는 대신 이 JSON만 파싱하면 되도록, 화면에는 안 보이는
+  // 데이터 블록을 이메일 본문 맨 아래에 함께 넣습니다. 표의 라벨:값 배치(한 행에 몇 개씩)가
+  // 바뀌어도 이 JSON 구조는 그대로라 파싱이 흔들리지 않습니다.
+  // <!--DATA_START--> ~ <!--DATA_END--> 사이의 텍스트를 그대로 Parse JSON에 넣으면 됩니다.
+  const payload = {
+    requestNo: params.requestNo,
+    teamId: params.teamId,
+    teamName: teamName(params.teamId),
+    requesterName: params.requesterName,
+    requestType: params.requestType,
+    requestTypeLabel: typeLabel(params.requestType),
+    status: "pending",
+    statusLabel: "대기",
+    createdAt: params.createdAt,
+    erpDocNo: params.erpDocNo ?? null,
+    summary: params.summary,
+    detail: params.detail ?? null,
+    imageUrls: extractImageUrls(params.detail),
+  };
+  const payloadJson = JSON.stringify(payload).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
+
   const html = `
     <p>새로운 업무 협조 요청이 등록되었습니다.</p>
     <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;">
-      <tr><td><b>요청번호</b></td><td>${params.requestNo}</td></tr>
-      <tr><td><b>팀</b></td><td>${teamName(params.teamId)}</td></tr>
-      <tr><td><b>담당자</b></td><td>${params.requesterName}</td></tr>
-      <tr><td><b>요청유형</b></td><td>${typeLabel(params.requestType)}</td></tr>
-      <tr><td><b>상태</b></td><td>대기</td></tr>
-      <tr><td><b>등록일시</b></td><td>${params.createdAt}</td></tr>
-      ${row("전자결재 문서번호", params.erpDocNo)}
-      <tr><td><b>요약</b></td><td>${escapeHtml(params.summary)}</td></tr>
-      ${buildDetailRows(params.requestType, params.detail)}
+      ${renderCells(cells)}
     </table>
+    <div style="display:none">
+      <!--DATA_START-->${payloadJson}<!--DATA_END-->
+    </div>
   `;
 
   return resend.emails.send({
