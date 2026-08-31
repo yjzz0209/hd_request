@@ -180,6 +180,15 @@ function rowsFor(requestType: string, r: any, detail: any): Record<string, any>[
         },
       ];
 
+    case "notice":
+      return [
+        {
+          ...base,
+          "공지 제목": detail.title,
+          "공지 게시 기간": `${detail.start_date ?? ""} ~ ${detail.end_date ?? ""}`,
+        },
+      ];
+
     default:
       return [base];
   }

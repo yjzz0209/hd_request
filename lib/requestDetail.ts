@@ -99,6 +99,11 @@ export async function loadDetailForRequest(
       return data;
     }
 
+    case "notice": {
+      const { data } = await supabase.from("request_notice").select("*").eq("request_id", requestId).single();
+      return data;
+    }
+
     default:
       return null;
   }

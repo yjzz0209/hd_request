@@ -19,6 +19,14 @@ type RequestRow = {
   erp_doc_no: string | null;
 };
 
+type InquiryRow = {
+  id: number;
+  name: string;
+  contact: string | null;
+  content: string;
+  created_at: string;
+};
+
 const ADMIN_KEY = "hd-admin-password";
 
 // 6. 관리자 화면 (기획 문서 2장-6, 3장-5)
@@ -33,6 +41,8 @@ export default function AdminPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [detailById, setDetailById] = useState<Record<number, any>>({});
   const [exporting, setExporting] = useState(false);
+  const [inquiries, setInquiries] = useState<InquiryRow[]>([]);
+  const [inquiriesLoading, setInquiriesLoading] = useState(false);
 
   useEffect(() => {
     const saved = sessionStorage.getItem(ADMIN_KEY);
@@ -45,6 +55,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (!authed) return;
     load();
+    loadInquiries();
   }, [authed]);
 
   function load() {
@@ -53,6 +64,14 @@ export default function AdminPage() {
       .then((r) => r.json())
       .then((data) => setRows(data.requests ?? []))
       .finally(() => setLoading(false));
+  }
+
+  function loadInquiries() {
+    setInquiriesLoading(true);
+    fetch("/api/inquiries", { headers: { "x-admin-password": password } })
+      .then((r) => r.json())
+      .then((data) => setInquiries(data.inquiries ?? []))
+      .finally(() => setInquiriesLoading(false));
   }
 
   function toggleExpand(id: number) {
@@ -218,6 +237,38 @@ export default function AdminPage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold text-neutral-900">문의하기 내역</h2>
+        {inquiriesLoading && <p className="text-sm text-neutral-400">불러오는 중...</p>}
+        {!inquiriesLoading && inquiries.length === 0 && (
+          <p className="text-sm text-neutral-400">등록된 문의가 없습니다.</p>
+        )}
+        {inquiries.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-neutral-200 text-neutral-500">
+                  <th className="py-2 pr-4">이름</th>
+                  <th className="py-2 pr-4">연락처</th>
+                  <th className="py-2 pr-4">내용</th>
+                  <th className="py-2 pr-4">등록일시</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inquiries.map((iq) => (
+                  <tr key={iq.id} className="border-b border-neutral-100">
+                    <td className="py-2 pr-4">{iq.name}</td>
+                    <td className="py-2 pr-4 text-neutral-500">{iq.contact ?? "-"}</td>
+                    <td className="py-2 pr-4 whitespace-pre-wrap">{iq.content}</td>
+                    <td className="py-2 pr-4 text-neutral-500">{new Date(iq.created_at).toLocaleString("ko-KR")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </main>
   );

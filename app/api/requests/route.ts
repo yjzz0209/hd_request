@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabaseServer";
 import { sendRequestNotification } from "@/lib/email";
-import { targetTeamFor } from "@/lib/requestTypes";
+import { targetTeamFor, TeamId } from "@/lib/requestTypes";
 
 // GET /api/requests?team=marketing  -> 조회 화면에서 사용 (3-4)
 export async function GET(req: NextRequest) {
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 // body: { teamId, requesterName, requestType, detail: {...}, summary }
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { teamId, requesterName, requestType, detail, summary, erpDocNo } = body;
+  const { teamId, requesterName, requestType, detail, summary, erpDocNo, targetTeamId } = body;
 
   if (!teamId || !requesterName || !requestType || !detail) {
     return NextResponse.json({ error: "필수 값이 누락되었습니다." }, { status: 400 });
@@ -38,12 +38,17 @@ export async function POST(req: NextRequest) {
 
   const supabase = getSupabaseServerClient();
 
+  // 받는 팀: 유통전략팀이 새 요청을 작성할 때는 화면에서 고른 값(targetTeamId)을 그대로 쓰고,
+  // 그 외에는 요청 유형별 기본 받는 팀을 씁니다. 마케팅팀·혁신팀 둘 다에게 보내고 싶은 경우는
+  // 화면에서 요청을 팀별로 나눠 이 API를 두 번 호출하는 방식으로 처리합니다.
+  const resolvedTargetTeam: TeamId = targetTeamId ?? targetTeamFor(requestType);
+
   // 1) 공통 정보 저장
   const { data: request, error: requestError } = await supabase
     .from("requests")
     .insert({
       team_id: teamId,
-      target_team_id: targetTeamFor(requestType),
+      target_team_id: resolvedTargetTeam,
       requester_name: requesterName,
       request_type: requestType,
       erp_doc_no: erpDocNo || null,
@@ -227,6 +232,13 @@ async function saveDetail(
     case "popup_takedown": {
       const { error } = await supabase
         .from("request_popup_takedown")
+        .insert({ request_id: requestId, ...detail });
+      return error?.message ?? null;
+    }
+
+    case "notice": {
+      const { error } = await supabase
+        .from("request_notice")
         .insert({ request_id: requestId, ...detail });
       return error?.message ?? null;
     }

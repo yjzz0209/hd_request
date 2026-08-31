@@ -73,6 +73,12 @@ export default function StartPage() {
       <a href="/admin" className="text-center text-sm text-neutral-400 underline">
         전체 요청 보기
       </a>
+      <a
+        href="/inquiry"
+        className="rounded-lg border border-neutral-300 px-4 py-3 text-center text-sm font-medium text-neutral-700 transition hover:border-[#12806f]"
+      >
+        문의하기
+      </a>
     </main>
   );
 }

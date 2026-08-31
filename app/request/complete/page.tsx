@@ -9,14 +9,19 @@ function CompleteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestNo = searchParams.get("requestNo");
+  const requestNos = (requestNo ?? "").split(",").filter(Boolean);
   const type = searchParams.get("type");
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-6 px-6 text-center">
       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#12806f] text-2xl text-white">✓</div>
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">요청이 등록되었습니다</h1>
-        <p className="mt-2 text-sm text-neutral-500">요청 번호: {requestNo}</p>
+        <h1 className="text-xl font-semibold text-neutral-900">
+          {requestNos.length > 1 ? "요청이 등록되었습니다 (받는 팀별로 각각 등록됨)" : "요청이 등록되었습니다"}
+        </h1>
+        <p className="mt-2 text-sm text-neutral-500">
+          {requestNos.length > 1 ? `요청 번호: ${requestNos.join(", ")}` : `요청 번호: ${requestNo}`}
+        </p>
         {type === "etc" && (
           <p className="mt-2 text-sm text-neutral-500">내용 확인 후 담당자가 상세 연락드리겠습니다.</p>
         )}

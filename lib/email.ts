@@ -277,6 +277,12 @@ function buildDetailCells(requestType: string, detail: any): (Cell | false)[] {
         cell("희망 내리기 일시", detail.desired_takedown_at),
       ];
 
+    case "notice":
+      return [
+        cell("공지 제목", detail.title),
+        cell("공지 게시 기간", `${detail.start_date ?? ""} ~ ${detail.end_date ?? ""}`),
+      ];
+
     default:
       return [];
   }
@@ -376,5 +382,57 @@ export async function sendRequestNotification(params: {
         content: Buffer.from(attachmentJson, "utf-8").toString("base64"),
       },
     ],
+  });
+}
+
+// 메인 화면 "문의하기"로 들어온 문의/의견 알림. 요청 시스템과 달리 팀/요청유형이 없는
+// 별도 문의함이라, 제목에 [업무협조요청]을 넣지 않습니다(Power Automate 필터가
+// 제목에 [업무협조요청]이 포함된 메일만 감지하므로, 이 메일은 그 흐름에 잡히지 않고
+// 이 시스템의 관리자 알림 메일함에만 도착합니다).
+export async function sendInquiryNotification(params: {
+  name: string;
+  contact?: string | null;
+  content: string;
+  createdAt: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const to = process.env.REQUEST_NOTIFICATION_EMAIL;
+
+  if (!apiKey || !to) {
+    console.warn(
+      "[email] RESEND_API_KEY 또는 REQUEST_NOTIFICATION_EMAIL 이 설정되지 않아 이메일 발송을 건너뜁니다."
+    );
+    return { skipped: true };
+  }
+
+  const resend = new Resend(apiKey);
+
+  const cells: Cell[] = [
+    cell("이름", params.name),
+    cell("연락처", params.contact),
+    cell("등록일시", params.createdAt),
+    cell("문의/의견 내용", params.content),
+  ];
+
+  const html = `
+    <div style="font-family:sans-serif;font-size:13px;color:#222;max-width:680px;">
+      <p>오늘의팜 문의하기로 새 문의/의견이 등록되었습니다.</p>
+      <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;table-layout:fixed;">
+        <colgroup>
+          <col style="width:20%;" />
+          <col style="width:30%;" />
+          <col style="width:20%;" />
+          <col style="width:30%;" />
+        </colgroup>
+        ${renderCells(cells)}
+      </table>
+    </div>
+  `;
+
+  return resend.emails.send({
+    from: "업무협조요청시스템 <noreply@today-pharm.co.kr>",
+    to,
+    subject: `[문의하기] ${params.name}`,
+    html,
   });
 }

@@ -177,6 +177,24 @@ create table if not exists order_cancel_items (
   qty integer not null
 );
 
+-- 공지사항 등록 요청 (1:1, 마케팅팀/혁신팀)
+create table if not exists request_notice (
+  request_id bigint primary key references requests(id) on delete cascade,
+  title text not null,
+  start_date date not null,
+  end_date date not null
+);
+
+-- 메인 화면 "문의하기" 버튼으로 들어오는 문의/의견. 요청 시스템과 달리 팀/요청유형이 없고,
+-- 저장 + 관리자 이메일 알림까지만 하고 상태값(대기/완료 등)은 따로 관리하지 않습니다.
+create table if not exists inquiries (
+  id bigint generated always as identity primary key,
+  name text not null,
+  contact text,
+  content text not null,
+  created_at timestamptz not null default now()
+);
+
 -- RLS는 우선 비활성 상태로 둡니다. 관리자 화면/조회 화면 모두
 -- service_role 키를 쓰는 서버 API를 경유하므로, 별도 로그인 체계가
 -- 붙기 전까지는 anon 키로 클라이언트에서 직접 테이블에 접근하지 않도록 주의합니다.

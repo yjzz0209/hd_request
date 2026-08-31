@@ -21,33 +21,64 @@ export type RequestTypeId =
   | "exception_order_shipment"
   | "holiday_setting"
   | "soldout_processing"
-  | "popup_takedown";
+  | "popup_takedown"
+  | "notice";
 
-// targetTeam: 이 요청이 최종적으로 누구에게 가는지. 마케팅팀·혁신팀이 보내는 유형은
-// 항상 유통전략팀이 받고, 유통전략팀이 보내는 유형은 유형별로 받는 팀이 달라집니다.
+// 마케팅팀 화면에서 요청 유형이 많아져서 찾기 쉽도록 묶는 그룹입니다. 다른 팀 화면에는
+// 영향이 없고(마케팅팀 목록에서만 이 그룹으로 나눠 보여줍니다), group이 없는 유형은
+// 마케팅팀에 노출되지 않는 유형이라 그룹도 필요 없습니다.
+export type MarketingGroupId = "product" | "expose" | "etc";
+
+export const MARKETING_GROUPS: { id: MarketingGroupId; label: string }[] = [
+  { id: "product", label: "상품 관련" },
+  { id: "expose", label: "노출·홍보 관련" },
+  { id: "etc", label: "기타" },
+];
+
+// targetTeam: 이 요청이 기본적으로 누구에게 가는지. 마케팅팀·혁신팀이 보내는 유형은
+// 항상 유통전략팀이 받고, 유통전략팀이 보내는 유형은 유형별로 기본 받는 팀이 다릅니다.
+// 유통전략팀이 새 요청을 작성할 때는 이 기본값을 그대로 두거나, 화면에서 받는 팀을
+// 바꾸거나 마케팅팀·혁신팀 둘 다로 선택할 수 있습니다(요청 작성 화면 참고).
 export const REQUEST_TYPES: {
   id: RequestTypeId;
   label: string;
   teams: TeamId[];
   targetTeam: TeamId;
+  marketingGroup?: MarketingGroupId;
 }[] = [
-  { id: "new_product", label: "신규 상품 등록", teams: ["marketing"], targetTeam: "distribution" },
-  { id: "product_change", label: "상품 정보 변경 요청", teams: ["marketing"], targetTeam: "distribution" },
-  { id: "popup", label: "팝업 등록 요청", teams: ["marketing"], targetTeam: "distribution" },
-  { id: "banner", label: "배너 등록 요청", teams: ["marketing"], targetTeam: "distribution" },
-  { id: "package", label: "패키지 상품 등록", teams: ["marketing"], targetTeam: "distribution" },
+  { id: "new_product", label: "신규 상품 등록", teams: ["marketing"], targetTeam: "distribution", marketingGroup: "product" },
+  { id: "product_change", label: "상품 정보 변경 요청", teams: ["marketing"], targetTeam: "distribution", marketingGroup: "product" },
+  { id: "package", label: "패키지 상품 등록", teams: ["marketing"], targetTeam: "distribution", marketingGroup: "product" },
+  { id: "soldout_processing", label: "품절처리 요청", teams: ["marketing"], targetTeam: "distribution", marketingGroup: "product" },
+  { id: "popup", label: "팝업 등록 요청", teams: ["marketing"], targetTeam: "distribution", marketingGroup: "expose" },
+  { id: "banner", label: "배너 등록 요청", teams: ["marketing"], targetTeam: "distribution", marketingGroup: "expose" },
+  { id: "popup_takedown", label: "팝업 내리기 요청", teams: ["marketing"], targetTeam: "distribution", marketingGroup: "expose" },
+  { id: "notice", label: "공지사항 등록 요청", teams: ["marketing", "innovation"], targetTeam: "distribution", marketingGroup: "expose" },
   { id: "order_cancel", label: "주문 취소 문자 발송", teams: ["innovation"], targetTeam: "distribution" },
   { id: "pharmacy_info_change", label: "약국 정보 변경 요청", teams: ["distribution"], targetTeam: "innovation" },
   { id: "exception_order_shipment", label: "예외 주문건 출고 요청", teams: ["distribution"], targetTeam: "innovation" },
   { id: "holiday_setting", label: "휴무일 세팅", teams: ["innovation"], targetTeam: "distribution" },
-  { id: "soldout_processing", label: "품절처리 요청", teams: ["marketing"], targetTeam: "distribution" },
-  { id: "popup_takedown", label: "팝업 내리기 요청", teams: ["marketing"], targetTeam: "distribution" },
   // "기타"는 목록 어디서나 항상 맨 마지막에 오도록 배열 맨 끝에 둡니다.
-  { id: "etc", label: "기타", teams: ["marketing"], targetTeam: "distribution" },
+  { id: "etc", label: "기타", teams: ["marketing"], targetTeam: "distribution", marketingGroup: "etc" },
 ];
 
 export function typesForTeam(teamId: TeamId) {
   return REQUEST_TYPES.filter((t) => t.teams.includes(teamId));
+}
+
+// 마케팅팀 요청 유형 선택 화면에서만 사용합니다. MARKETING_GROUPS 순서대로,
+// 그룹에 속한 유형이 하나도 없으면 그 그룹 자체를 건너뜁니다.
+export function marketingGroupedTypes() {
+  const marketingTypes = typesForTeam("marketing");
+  return MARKETING_GROUPS.map((g) => ({
+    ...g,
+    types: marketingTypes.filter((t) => t.marketingGroup === g.id),
+  })).filter((g) => g.types.length > 0);
+}
+
+// 유통전략팀이 새 요청을 만들 때 받는 팀을 고를 수 있는 후보(자기 자신 제외).
+export function selectableTargetTeams(): TeamId[] {
+  return ["marketing", "innovation"];
 }
 
 export function targetTeamFor(requestType: string): TeamId {

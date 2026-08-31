@@ -281,6 +281,14 @@ export function RequestDetail({ requestType, detail }: { requestType: string; de
         </div>
       );
 
+    case "notice":
+      return (
+        <div className="flex flex-col gap-2">
+          <Row label="공지 제목" value={detail.title} />
+          <Row label="공지 게시 기간" value={`${detail.start_date} ~ ${detail.end_date}`} />
+        </div>
+      );
+
     default:
       return <p className="text-xs text-neutral-400">상세 정보가 없습니다.</p>;
   }
