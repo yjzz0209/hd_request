@@ -4,6 +4,8 @@
 // 값을 HTML 문자열이 아니라 이런 구조화된 데이터로 따로 뽑습니다. 이미 안정적으로 동작 중인
 // 이메일 발송 로직(buildDetailCells)에 영향이 가지 않도록 일부러 별도 함수로 둡니다.
 
+import { imageTypeLabel } from "./requestTypes";
+
 export type ImageField =
   | { kind: "text"; label: string; value: string }
   | { kind: "table"; label: string; columns: { key: string; label: string }[]; rows: any[] };
@@ -77,7 +79,7 @@ export function buildImageFields(requestType: string, detail: any): ImageField[]
         text(
           "개별 이미지",
           Array.isArray(detail.images) && detail.images.length > 0
-            ? `${detail.images.length}개 첨부 (${detail.images.map((i: any) => i.image_type).join(", ")})`
+            ? `${detail.images.length}개 첨부 (${detail.images.map((i: any) => imageTypeLabel(i.image_type)).join(", ")})`
             : "없음"
         )
       );

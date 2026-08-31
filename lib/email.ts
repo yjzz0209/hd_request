@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { teamName, typeLabel } from "./requestTypes";
+import { teamName, typeLabel, imageTypeLabel } from "./requestTypes";
 
 // Power Automate가 Outlook 트리거로 이 이메일을 감지해서
 // SharePoint/OneDrive의 엑셀 파일에 한 행씩 옮겨 적습니다.
@@ -102,7 +102,7 @@ function extractImageUrls(detail: any): { label: string; url: string }[] {
   if (detail.business_reg_file_url) out.push({ label: "사업자등록증", url: detail.business_reg_file_url });
   if (Array.isArray(detail.images)) {
     for (const img of detail.images) {
-      if (img?.file_url) out.push({ label: img.image_type ?? "이미지", url: img.file_url });
+      if (img?.file_url) out.push({ label: img.image_type ? imageTypeLabel(img.image_type) : "이미지", url: img.file_url });
     }
   }
   return out;
@@ -154,7 +154,7 @@ function buildDetailCells(requestType: string, detail: any): (Cell | false)[] {
         cellRaw(
           "개별 이미지",
           (detail.images ?? [])
-            .map((img: any) => `${escapeHtml(img.image_type)}: ${fileLinkValue(img.file_url)}`)
+            .map((img: any) => `${escapeHtml(imageTypeLabel(img.image_type))}: ${fileLinkValue(img.file_url)}`)
             .join("<br/>") || "(없음)"
         ),
       ];

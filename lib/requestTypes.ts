@@ -116,6 +116,9 @@ export const NEW_PRODUCT_FIELDS: { key: string; label: string }[] = [
 ];
 
 export const IMAGE_TYPES: { key: string; label: string }[] = [
+  // 6가지 정해진 용도 외에, 용도를 딱히 구분하지 않고 그냥 사진을 첨부하고 싶을 때 쓰는 항목.
+  // "개별 이미지" 목록 맨 위에 오도록 배열 맨 앞에 둡니다.
+  { key: "general", label: "기타 이미지" },
   { key: "zoom", label: "확대 이미지" },
   { key: "detail", label: "상세 이미지" },
   { key: "thumbnail", label: "썸네일 이미지" },
@@ -123,3 +126,7 @@ export const IMAGE_TYPES: { key: string; label: string }[] = [
   { key: "list_group", label: "리스트그룹형 이미지" },
   { key: "product_type", label: "상품이미지형 이미지" },
 ];
+
+export function imageTypeLabel(key: string) {
+  return IMAGE_TYPES.find((t) => t.key === key)?.label ?? key;
+}

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { getSupabaseServerClient } from "@/lib/supabaseServer";
 import { loadDetailForRequest } from "@/lib/requestDetail";
-import { REQUEST_TYPES, STATUS_LABEL, teamName, typeLabel } from "@/lib/requestTypes";
+import { REQUEST_TYPES, STATUS_LABEL, teamName, typeLabel, imageTypeLabel } from "@/lib/requestTypes";
 
 // GET /api/requests/export -> 전체요청관리 화면의 "엑셀 다운로드" 버튼에서 사용.
 // header: x-admin-password
@@ -39,7 +39,7 @@ function rowsFor(requestType: string, r: any, detail: any): Record<string, any>[
       const packageItems = (detail.items ?? [])
         .map((i: any) => `상품코드 ${i.product_code} / 수량 ${i.qty} / 배분금액 ${i.allocated_price}`)
         .join("; ");
-      const images = (detail.images ?? []).map((i: any) => `${i.image_type}: ${i.file_url}`).join("; ");
+      const images = (detail.images ?? []).map((i: any) => `${imageTypeLabel(i.image_type)}: ${i.file_url}`).join("; ");
       return [
         {
           ...base,

@@ -1,5 +1,7 @@
 "use client";
 
+import { imageTypeLabel } from "@/lib/requestTypes";
+
 // 요청 조회 화면에서 항목을 펼쳤을 때 상세 내역을 보여주는 컴포넌트.
 // 요청 유형마다 상세 테이블 구조가 달라서, 유형별로 보여줄 항목을 정리합니다.
 
@@ -145,7 +147,7 @@ export function RequestDetail({ requestType, detail }: { requestType: string; de
               <p className="text-xs font-medium text-neutral-500">이미지</p>
               {detail.images.map((img: any, i: number) => (
                 <div key={i} className="text-xs">
-                  {img.image_type} · <FileLink url={img.file_url} />
+                  {imageTypeLabel(img.image_type)} · <FileLink url={img.file_url} />
                 </div>
               ))}
             </div>
