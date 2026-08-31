@@ -286,6 +286,12 @@ export function RequestDetail({ requestType, detail }: { requestType: string; de
         <div className="flex flex-col gap-2">
           <Row label="공지 제목" value={detail.title} />
           <Row label="공지 게시 기간" value={`${detail.start_date} ~ ${detail.end_date}`} />
+          {detail.content && (
+            <div className="mt-1">
+              <p className="mb-1 text-xs font-medium text-neutral-500">공지 내용</p>
+              <p className="whitespace-pre-wrap text-sm text-neutral-800">{detail.content}</p>
+            </div>
+          )}
         </div>
       );
 

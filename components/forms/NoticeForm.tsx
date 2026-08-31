@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Field, TextInput, PrimaryButton } from "../ui";
+import { Field, TextInput, TextArea, PrimaryButton } from "../ui";
 
 export function NoticeForm({
   onSubmit,
@@ -11,6 +11,7 @@ export function NoticeForm({
   submitting: boolean;
 }) {
   const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
@@ -18,6 +19,7 @@ export function NoticeForm({
     e.preventDefault();
     const detail = {
       title,
+      content,
       start_date: startDate,
       end_date: endDate,
     };
@@ -28,6 +30,10 @@ export function NoticeForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <Field label="공지 제목">
         <TextInput required value={title} onChange={(e) => setTitle(e.target.value)} />
+      </Field>
+
+      <Field label="공지 내용">
+        <TextArea required value={content} onChange={(e) => setContent(e.target.value)} />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">

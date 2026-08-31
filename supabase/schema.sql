@@ -181,6 +181,7 @@ create table if not exists order_cancel_items (
 create table if not exists request_notice (
   request_id bigint primary key references requests(id) on delete cascade,
   title text not null,
+  content text not null,
   start_date date not null,
   end_date date not null
 );

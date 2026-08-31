@@ -281,6 +281,7 @@ function buildDetailCells(requestType: string, detail: any): (Cell | false)[] {
       return [
         cell("공지 제목", detail.title),
         cell("공지 게시 기간", `${detail.start_date ?? ""} ~ ${detail.end_date ?? ""}`),
+        cell("공지 내용", detail.content),
       ];
 
     default:
