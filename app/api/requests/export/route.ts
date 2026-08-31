@@ -101,7 +101,7 @@ function rowsFor(requestType: string, r: any, detail: any): Record<string, any>[
       ];
 
     case "etc":
-      return [{ ...base, 내용: detail.content }];
+      return [{ ...base, 내용: detail.content, 첨부파일: detail.file_url ?? "" }];
 
     case "order_cancel": {
       const items = detail.items ?? [];

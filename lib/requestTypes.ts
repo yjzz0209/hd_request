@@ -58,8 +58,17 @@ export const REQUEST_TYPES: {
   { id: "pharmacy_info_change", label: "약국 정보 변경 요청", teams: ["distribution"], targetTeam: "innovation" },
   { id: "exception_order_shipment", label: "예외 주문건 출고 요청", teams: ["distribution"], targetTeam: "innovation" },
   { id: "holiday_setting", label: "휴무일 세팅", teams: ["innovation"], targetTeam: "distribution" },
-  // "기타"는 목록 어디서나 항상 맨 마지막에 오도록 배열 맨 끝에 둡니다.
-  { id: "etc", label: "기타", teams: ["marketing"], targetTeam: "distribution", marketingGroup: "etc" },
+  // "기타"는 세 팀 모두 쓸 수 있는 유형이라 마케팅팀·혁신팀뿐 아니라 유통전략팀에서도
+  // 요청 유형 목록에 나타납니다. targetTeam은 마케팅팀·혁신팀이 보낼 때 기본 받는 팀(유통전략팀)
+  // 기준이고, 유통전략팀이 보낼 때는 화면에서 마케팅팀/혁신팀 중 받는 팀을 고르게 됩니다.
+  // 목록 어디서나 항상 맨 마지막에 오도록 배열 맨 끝에 둡니다.
+  {
+    id: "etc",
+    label: "기타",
+    teams: ["marketing", "innovation", "distribution"],
+    targetTeam: "distribution",
+    marketingGroup: "etc",
+  },
 ];
 
 export function typesForTeam(teamId: TeamId) {

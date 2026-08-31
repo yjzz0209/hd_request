@@ -30,7 +30,7 @@ function NewRequestContent() {
   const [erpDocNo, setErpDocNo] = useState("");
   // 유통전략팀이 새 요청을 작성할 때만 쓰는 "받는 팀" 선택 상태. 유형별 기본 받는 팀으로
   // 미리 체크해두고, 필요하면 다른 팀을 추가로 체크해서 두 팀 모두에게 보낼 수 있습니다.
-  const [targetTeams, setTargetTeams] = useState<string[]>(() => (type ? [targetTeamFor(type)] : []));
+  const [targetTeams, setTargetTeams] = useState<string[]>([]);
 
   useEffect(() => {
     const s = loadSession();
@@ -39,7 +39,20 @@ function NewRequestContent() {
       return;
     }
     setSession(s);
-  }, [router]);
+
+    if (type) {
+      // "기타"처럼 세 팀이 다 쓰는 유형은 targetTeamFor()가 유통전략팀이 보낼 때는 맞지 않는
+      // 기본값(자기 자신)을 줄 수 있어서, 유통전략팀이 보낼 때는 실제로 고를 수 있는 팀
+      // (마케팅팀/혁신팀) 중에서 기본값을 다시 고릅니다.
+      if (s.teamId === "distribution") {
+        const options = selectableTargetTeams();
+        const fallback = targetTeamFor(type);
+        setTargetTeams([options.includes(fallback) ? fallback : options[0]]);
+      } else {
+        setTargetTeams([targetTeamFor(type)]);
+      }
+    }
+  }, [router, type]);
 
   if (!session) return null;
 

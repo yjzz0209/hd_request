@@ -168,7 +168,7 @@ async function saveDetail(
     case "etc": {
       const { error } = await supabase
         .from("request_etc")
-        .insert({ request_id: requestId, content: detail.content });
+        .insert({ request_id: requestId, content: detail.content, file_url: detail.file_url ?? null });
       return error?.message ?? null;
     }
 

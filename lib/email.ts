@@ -100,6 +100,7 @@ function extractImageUrls(detail: any): { label: string; url: string }[] {
   if (detail.image_url) out.push({ label: "이미지", url: detail.image_url });
   if (detail.description_file_url) out.push({ label: "상세 설명 파일", url: detail.description_file_url });
   if (detail.business_reg_file_url) out.push({ label: "사업자등록증", url: detail.business_reg_file_url });
+  if (detail.file_url) out.push({ label: "첨부파일", url: detail.file_url });
   if (Array.isArray(detail.images)) {
     for (const img of detail.images) {
       if (img?.file_url) out.push({ label: img.image_type ? imageTypeLabel(img.image_type) : "이미지", url: img.file_url });
@@ -193,7 +194,7 @@ function buildDetailCells(requestType: string, detail: any): (Cell | false)[] {
       ];
 
     case "etc":
-      return [cell("내용", detail.content)];
+      return [cell("내용", detail.content), cellRaw("첨부파일", fileLinkValue(detail.file_url))];
 
     case "order_cancel":
       return [

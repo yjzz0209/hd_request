@@ -120,7 +120,7 @@ export function buildImageFields(requestType: string, detail: any): ImageField[]
       ];
 
     case "etc":
-      return [text("내용", detail.content)];
+      return [text("내용", detail.content), text("첨부파일", fileField(detail.file_url))];
 
     case "order_cancel":
       return [

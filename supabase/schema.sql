@@ -157,7 +157,8 @@ create table if not exists package_items (
 -- 기타 요청
 create table if not exists request_etc (
   request_id bigint primary key references requests(id) on delete cascade,
-  content text not null
+  content text not null,
+  file_url text
 );
 
 -- 7-10. request_order_cancel (1:1, 혁신팀) / order_cancel_items (1:N)

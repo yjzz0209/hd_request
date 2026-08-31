@@ -193,7 +193,12 @@ export function RequestDetail({ requestType, detail }: { requestType: string; de
       );
 
     case "etc":
-      return <p className="whitespace-pre-wrap text-sm text-neutral-800">{detail.content}</p>;
+      return (
+        <div className="flex flex-col gap-2">
+          <p className="whitespace-pre-wrap text-sm text-neutral-800">{detail.content}</p>
+          {detail.file_url && <Row label="첨부파일" value={<FileLink url={detail.file_url} />} />}
+        </div>
+      );
 
     case "order_cancel":
       return (

@@ -149,6 +149,7 @@ export function NewProductForm({
             <FileUploadField
               key={it.key}
               label={it.label}
+              hideLabel={it.key === "general"}
               titleHint={productName}
               onUploaded={(url, name) => setImage(it.key, url, name)}
             />
