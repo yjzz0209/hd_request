@@ -145,15 +145,25 @@ export function NewProductForm({
 
       <Field label="개별 이미지">
         <div className="flex flex-col gap-3">
-          {IMAGE_TYPES.map((it) => (
-            <FileUploadField
-              key={it.key}
-              label={it.label}
-              hideLabel={it.key === "general"}
-              titleHint={productName}
-              onUploaded={(url, name) => setImage(it.key, url, name)}
-            />
-          ))}
+          {/* 기타 이미지: 용도를 딱히 구분하지 않는 항목이라 "개별 이미지" 라벨 바로 아래
+              단독으로 두고, 나머지 6개 정해진 용도 항목만 카드형 2열 그리드로 배치합니다. */}
+          <FileUploadField
+            label="기타 이미지"
+            hideLabel
+            titleHint={productName}
+            onUploaded={(url, name) => setImage("general", url, name)}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            {IMAGE_TYPES.filter((it) => it.key !== "general").map((it) => (
+              <div key={it.key} className="rounded-2xl bg-neutral-50 p-3">
+                <FileUploadField
+                  label={it.label}
+                  titleHint={productName}
+                  onUploaded={(url, name) => setImage(it.key, url, name)}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </Field>
 
