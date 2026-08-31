@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TEAMS, STATUS_LABEL, typeLabel, teamName } from "@/lib/requestTypes";
 import { RequestDetail } from "@/components/RequestDetail";
+import { isTeamViewUnlocked, unlockTeamView } from "@/lib/session";
+import { TextInput, PrimaryButton } from "@/components/ui";
 
 type RequestRow = {
   id: number;
@@ -33,6 +35,48 @@ export default function RequestsPage() {
   const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [detailById, setDetailById] = useState<Record<number, any>>({});
+
+  // 팀 비밀번호 확인 상태. 이미 이 세션에서 확인된 팀을 누르면 바로 목록을 보여주고,
+  // 아직 확인되지 않은 팀을 누르면 비밀번호 입력창을 띄웁니다.
+  const [pendingTeam, setPendingTeam] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authenticating, setAuthenticating] = useState(false);
+
+  function handleTeamClick(id: string) {
+    if (isTeamViewUnlocked(id)) {
+      setTeamId(id);
+      setPendingTeam(null);
+      return;
+    }
+    setPendingTeam(id);
+    setPassword("");
+    setAuthError("");
+  }
+
+  function handleAuthSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!pendingTeam || !password) return;
+    setAuthenticating(true);
+    setAuthError("");
+    fetch("/api/requests/team-auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ teamId: pendingTeam, password }),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          setAuthError(data.error ?? "비밀번호가 올바르지 않습니다.");
+          return;
+        }
+        unlockTeamView(pendingTeam);
+        setTeamId(pendingTeam);
+        setPendingTeam(null);
+      })
+      .catch(() => setAuthError("확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."))
+      .finally(() => setAuthenticating(false));
+  }
 
   useEffect(() => {
     if (!teamId) return;
@@ -68,7 +112,7 @@ export default function RequestsPage() {
           <button
             key={t.id}
             type="button"
-            onClick={() => setTeamId(t.id)}
+            onClick={() => handleTeamClick(t.id)}
             className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
               teamId === t.id
                 ? "border-[#12806f] bg-[#12806f] text-white"
@@ -79,6 +123,35 @@ export default function RequestsPage() {
           </button>
         ))}
       </div>
+
+      {pendingTeam && (
+        <form
+          onSubmit={handleAuthSubmit}
+          className="flex flex-col gap-3 rounded-lg border border-neutral-200 p-4"
+        >
+          <p className="text-sm text-neutral-600">{teamName(pendingTeam)} 비밀번호를 입력해주세요.</p>
+          <TextInput
+            type="password"
+            autoFocus
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="비밀번호"
+          />
+          {authError && <p className="text-xs text-[#d0492e]">{authError}</p>}
+          <div className="flex items-center gap-3">
+            <PrimaryButton type="submit" disabled={authenticating || !password}>
+              {authenticating ? "확인 중..." : "확인"}
+            </PrimaryButton>
+            <button
+              type="button"
+              onClick={() => setPendingTeam(null)}
+              className="text-sm text-neutral-400 underline"
+            >
+              취소
+            </button>
+          </div>
+        </form>
+      )}
 
       {loading && <p className="text-sm text-neutral-400">불러오는 중...</p>}
 
