@@ -36,7 +36,7 @@ export const REQUEST_TYPES: {
   { id: "popup", label: "팝업 등록 요청", teams: ["marketing"], targetTeam: "distribution" },
   { id: "banner", label: "배너 등록 요청", teams: ["marketing"], targetTeam: "distribution" },
   { id: "package", label: "패키지 상품 등록", teams: ["marketing"], targetTeam: "distribution" },
-  { id: "order_cancel", label: "주문 취소 요청", teams: ["innovation"], targetTeam: "distribution" },
+  { id: "order_cancel", label: "주문 취소 문자 발송", teams: ["innovation"], targetTeam: "distribution" },
   { id: "pharmacy_info_change", label: "약국 정보 변경 요청", teams: ["distribution"], targetTeam: "innovation" },
   { id: "exception_order_shipment", label: "예외 주문건 출고 요청", teams: ["distribution"], targetTeam: "innovation" },
   { id: "holiday_setting", label: "휴무일 세팅", teams: ["innovation"], targetTeam: "distribution" },
