@@ -34,7 +34,18 @@ function cellRaw(label: string, html: string): Cell {
   return { label, html: html || "-" };
 }
 
+// 라벨 칸/값 칸에 공통으로 쓰는 인라인 스타일. 이메일 클라이언트는 <style> 블록이나 CSS
+// 클래스를 무시하는 경우가 많아서(특히 Outlook) 태그 안에 직접 style로 넣습니다.
+// 라벨은 글자 중간(음절 사이)에서 잘리지 않게 word-break:keep-all만 쓰고(칸이 좁으면 띄어쓰기
+// 위치에서만 줄바꿈), 값은 긴 URL 등이 표를 밀어내지 않도록 강제로 줄바꿈되게(break-word) 합니다.
+const LABEL_TD_STYLE =
+  "padding:6px 8px;background:#f5f5f5;word-break:keep-all;overflow-wrap:normal;vertical-align:top;border:1px solid #ddd;";
+const VALUE_TD_STYLE =
+  "padding:6px 8px;word-break:break-word;overflow-wrap:break-word;vertical-align:top;border:1px solid #ddd;";
+
 // 라벨:값 쌍들을 한 행에 두 쌍씩 나란히 배치한 <tr> 목록으로 렌더링합니다.
+// 표 전체는 4개 칼럼(라벨/값/라벨/값) 너비를 인라인 스타일로 고정해서, 행마다 칼럼 너비가
+// 제각각 달라지며 라벨 글자가 중간에서 잘려 줄바꿈되는 문제를 막습니다.
 function renderCells(cells: (Cell | false | null | undefined)[]): string {
   const list = cells.filter((c): c is Cell => Boolean(c));
   const PER_ROW = 2;
@@ -42,30 +53,40 @@ function renderCells(cells: (Cell | false | null | undefined)[]): string {
   for (let i = 0; i < list.length; i += PER_ROW) {
     const pair = list.slice(i, i + PER_ROW);
     const tds = pair
-      .map((c) => `<td><b>${escapeHtml(c.label)}</b></td><td>${c.html}</td>`)
+      .map(
+        (c) =>
+          `<td style="${LABEL_TD_STYLE}"><b>${escapeHtml(c.label)}</b></td><td style="${VALUE_TD_STYLE}">${c.html}</td>`
+      )
       .join("");
-    const padding = "<td></td><td></td>".repeat(PER_ROW - pair.length);
+    const padding = `<td style="${LABEL_TD_STYLE}"></td><td style="${VALUE_TD_STYLE}"></td>`.repeat(
+      PER_ROW - pair.length
+    );
     rows.push(`<tr>${tds}${padding}</tr>`);
   }
   return rows.join("");
 }
 
-function fileLinkValue(url?: string | null) {
+// 값 칸에 원본 URL을 그대로 노출하면(특히 긴 이미지 링크) 줄바꿈이 이상하게 되면서 표가
+// 깨져 보이므로, 짧은 안내 문구만 링크로 보여줍니다. 실제 주소는 href에 그대로 남아있어
+// 클릭하면 정상적으로 이동/다운로드됩니다.
+function fileLinkValue(url?: string | null, label = "파일 보기") {
   if (!url) return "";
   const safe = escapeHtml(url);
-  return `<a href="${safe}">${safe}</a>`;
+  return `<a href="${safe}" style="color:#12806f;">${escapeHtml(label)}</a>`;
 }
 
 function itemsTable(items: any[] | undefined, columns: { key: string; label: string }[]) {
   if (!Array.isArray(items) || items.length === 0) return "(없음)";
-  const head = columns.map((c) => `<th>${escapeHtml(c.label)}</th>`).join("");
+  const cellStyle = "padding:4px 8px;border:1px solid #ddd;word-break:break-word;overflow-wrap:break-word;";
+  const headStyle = `${cellStyle}background:#f5f5f5;word-break:keep-all;overflow-wrap:normal;`;
+  const head = columns.map((c) => `<th style="${headStyle}">${escapeHtml(c.label)}</th>`).join("");
   const body = items
     .map(
       (it) =>
-        `<tr>${columns.map((c) => `<td>${escapeHtml(it[c.key])}</td>`).join("")}</tr>`
+        `<tr>${columns.map((c) => `<td style="${cellStyle}">${escapeHtml(it[c.key])}</td>`).join("")}</tr>`
     )
     .join("");
-  return `<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;"><tr>${head}</tr>${body}</table>`;
+  return `<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;width:100%;table-layout:fixed;"><tr>${head}</tr>${body}</table>`;
 }
 
 // Power Automate가 이미지를 OneDrive로 복사해 엑셀에 링크를 남길 때 쓰는 목록.
@@ -313,15 +334,31 @@ export async function sendRequestNotification(params: {
   };
   const payloadJson = JSON.stringify(payload).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
 
+  // table-layout:fixed + colgroup으로 라벨/값 칸 너비를 고정합니다. 이게 없으면 행마다
+  // 내용 길이에 따라 칼럼 너비가 제각각 정해지면서 라벨 글자가 중간에 잘려 줄바꿈되거나
+  // 표 전체가 넓어져 깨져 보입니다.
   const html = `
-    <p>새로운 업무 협조 요청이 등록되었습니다.</p>
-    <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;">
-      ${renderCells(cells)}
-    </table>
-    <div style="display:none">
-      <!--DATA_START-->${payloadJson}<!--DATA_END-->
+    <div style="font-family:sans-serif;font-size:13px;color:#222;max-width:680px;">
+      <p>새로운 업무 협조 요청이 등록되었습니다.</p>
+      <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;table-layout:fixed;">
+        <colgroup>
+          <col style="width:20%;" />
+          <col style="width:30%;" />
+          <col style="width:20%;" />
+          <col style="width:30%;" />
+        </colgroup>
+        ${renderCells(cells)}
+      </table>
+      <div style="display:none">
+        <!--DATA_START-->${payloadJson}<!--DATA_END-->
+      </div>
     </div>
   `;
+
+  // 화면에 안 보이는 JSON 블록과 별도로, 같은 내용을 첨부파일로도 넣어둡니다.
+  // Power Automate에서 본문을 잘라내는 수식(Compose) 없이, 이 첨부파일 하나만 그대로
+  // Parse JSON에 넣으면 되도록 하기 위한 용도입니다(설정이 훨씬 간단해집니다).
+  const attachmentJson = JSON.stringify(payload, null, 2);
 
   return resend.emails.send({
     from: "업무협조요청시스템 <noreply@today-pharm.co.kr>",
@@ -330,5 +367,11 @@ export async function sendRequestNotification(params: {
       params.teamId
     )} ${params.requesterName}`,
     html,
+    attachments: [
+      {
+        filename: `${params.requestNo}.json`,
+        content: Buffer.from(attachmentJson, "utf-8").toString("base64"),
+      },
+    ],
   });
 }
