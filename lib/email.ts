@@ -67,11 +67,14 @@ function renderCells(cells: (Cell | false | null | undefined)[]): string {
 }
 
 // 값 칸에 원본 URL을 그대로 노출하면(특히 긴 이미지 링크) 줄바꿈이 이상하게 되면서 표가
-// 깨져 보이므로, 짧은 안내 문구만 링크로 보여줍니다. 실제 주소는 href에 그대로 남아있어
-// 클릭하면 정상적으로 이동/다운로드됩니다.
-function fileLinkValue(url?: string | null, label = "파일 보기") {
+// 깨져 보이므로, 짧은 안내 문구만 링크로 보여줍니다. 이메일은 자바스크립트를 못 쓰기 때문에
+// (사이트 화면에서 쓴 것과 같은 방식으로) 강제 다운로드를 걸 수는 없지만, Supabase 저장소
+// 링크는 끝에 ?download를 붙이면 서버가 알아서 "다운로드"로 응답하도록 되어 있어서
+// 클릭하면 새 탭에서 열리는 대신 바로 다운로드됩니다.
+function fileLinkValue(url?: string | null, label = "파일 다운로드") {
   if (!url) return "";
-  const safe = escapeHtml(url);
+  const downloadUrl = url.includes("?") ? `${url}&download` : `${url}?download`;
+  const safe = escapeHtml(downloadUrl);
   return `<a href="${safe}" style="color:#12806f;">${escapeHtml(label)}</a>`;
 }
 
