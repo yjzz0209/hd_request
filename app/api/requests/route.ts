@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
   // 3) 이메일 알림 (Resend). 이 메일을 Power Automate가 감지해서 엑셀에 반영합니다.
   try {
     await sendRequestNotification({
+      requestId: request.id,
       requestNo: request.request_no,
       teamId,
       requesterName,

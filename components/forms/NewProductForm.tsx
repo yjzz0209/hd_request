@@ -144,7 +144,7 @@ export function NewProductForm({
       </Field>
 
       <Field label="개별 이미지">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-3">
           {IMAGE_TYPES.map((it) => (
             <FileUploadField
               key={it.key}

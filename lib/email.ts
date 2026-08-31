@@ -289,7 +289,12 @@ function buildDetailCells(requestType: string, detail: any): (Cell | false)[] {
   }
 }
 
+// 알림 이메일의 "표 이미지로 저장" 버튼이 가리키는 주소를 만드는 데 씁니다. Vercel에
+// 배포된 실제 주소로, 필요하면 나중에 NEXT_PUBLIC_SITE_URL 환경변수로 덮어쓸 수 있습니다.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://hd-request.vercel.app";
+
 export async function sendRequestNotification(params: {
+  requestId: number;
   requestNo: string;
   teamId: string;
   requesterName: string;
@@ -344,6 +349,10 @@ export async function sendRequestNotification(params: {
   };
   const payloadJson = JSON.stringify(payload).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
 
+  // 이메일 자체는 자바스크립트를 못 써서 그 자리에서 표를 이미지로 만들 수는 없기 때문에,
+  // 서버가 미리 만들어둔 표 이미지(PNG)를 내려받는 링크를 버튼처럼 보이게 넣습니다.
+  const imageUrl = `${SITE_URL}/api/requests/${params.requestId}/image`;
+
   // table-layout:fixed + colgroup으로 라벨/값 칸 너비를 고정합니다. 이게 없으면 행마다
   // 내용 길이에 따라 칼럼 너비가 제각각 정해지면서 라벨 글자가 중간에 잘려 줄바꿈되거나
   // 표 전체가 넓어져 깨져 보입니다.
@@ -359,6 +368,11 @@ export async function sendRequestNotification(params: {
         </colgroup>
         ${renderCells(cells)}
       </table>
+      <p style="margin:14px 0 0;">
+        <a href="${escapeHtml(imageUrl)}" style="display:inline-block;background:#12806f;color:#fff;text-decoration:none;font-weight:bold;padding:9px 16px;border-radius:6px;">
+          표 이미지로 저장
+        </a>
+      </p>
       <div style="display:none">
         <!--DATA_START-->${payloadJson}<!--DATA_END-->
       </div>
