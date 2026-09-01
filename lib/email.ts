@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { teamName, typeLabel, imageTypeLabel } from "./requestTypes";
+import { buildDownloadName } from "./downloadName";
 
 // Power Automate가 Outlook 트리거로 이 이메일을 감지해서
 // SharePoint/OneDrive의 엑셀 파일에 한 행씩 옮겨 적습니다.
@@ -70,12 +71,15 @@ function renderCells(cells: (Cell | false | null | undefined)[]): string {
 // 깨져 보이므로, 짧은 안내 문구만 링크로 보여줍니다. 이메일은 자바스크립트를 못 쓰기 때문에
 // (사이트 화면에서 쓴 것과 같은 방식으로) 강제 다운로드를 걸 수는 없지만, Supabase 저장소
 // 링크는 끝에 ?download를 붙이면 서버가 알아서 "다운로드"로 응답하도록 되어 있어서
-// 클릭하면 새 탭에서 열리는 대신 바로 다운로드됩니다.
-function fileLinkValue(url?: string | null, label = "파일 다운로드") {
+// 클릭하면 새 탭에서 열리는 대신 바로 다운로드됩니다. downloadName을 넘기면
+// ?download=이름 형태로 다운로드될 때의 파일명도 지정할 수 있습니다(요청번호_항목명_날짜).
+function fileLinkValue(url?: string | null, opts?: { linkText?: string; downloadName?: string }) {
   if (!url) return "";
-  const downloadUrl = url.includes("?") ? `${url}&download` : `${url}?download`;
+  const linkText = opts?.linkText ?? "파일 다운로드";
+  const downloadParam = opts?.downloadName ? `download=${encodeURIComponent(opts.downloadName)}` : "download";
+  const downloadUrl = url.includes("?") ? `${url}&${downloadParam}` : `${url}?${downloadParam}`;
   const safe = escapeHtml(downloadUrl);
-  return `<a href="${safe}" style="color:#12806f;">${escapeHtml(label)}</a>`;
+  return `<a href="${safe}" style="color:#12806f;">${escapeHtml(linkText)}</a>`;
 }
 
 function itemsTable(items: any[] | undefined, columns: { key: string; label: string }[]) {
@@ -114,8 +118,14 @@ const STOCK_TYPE = (v: string) => (v === "by_stock" ? "재고량에 따름" : "�
 const SALE_PERIOD = (v: string) => (v === "fixed" ? "기간 있음" : "제한없음");
 
 // 요청 유형별 상세 항목을 라벨:값 쌍 목록으로 만들어줍니다. (요청 조회 화면의 RequestDetail과 동일한 항목 기준)
-function buildDetailCells(requestType: string, detail: any): (Cell | false)[] {
+// ctx: "파일 다운로드" 링크를 눌렀을 때 저장될 파일명(요청번호_항목명_날짜)을 만드는 데 씁니다.
+function buildDetailCells(
+  requestType: string,
+  detail: any,
+  ctx: { requestNo: string; createdAtRaw: string | number | Date }
+): (Cell | false)[] {
   if (!detail) return [];
+  const dn = (label: string, url?: string | null) => buildDownloadName(ctx.requestNo, label, ctx.createdAtRaw, url);
 
   switch (requestType) {
     case "new_product":
@@ -133,7 +143,12 @@ function buildDetailCells(requestType: string, detail: any): (Cell | false)[] {
           cell("판매 기간", `${detail.sale_start_date ?? ""} ~ ${detail.sale_end_date ?? ""}`),
         cell("금융비 사용 설정", YES_NO(detail.use_finance_fee)),
         isPackage && cell("할인 판매 총액", detail.total_price),
-        cellRaw("상품 상세 설명 문구", fileLinkValue(detail.description_file_url)),
+        cellRaw(
+          "상품 상세 설명 문구",
+          fileLinkValue(detail.description_file_url, {
+            downloadName: dn("상품 상세 설명 문구", detail.description_file_url),
+          })
+        ),
         !isPackage &&
           cellRaw(
             "수량/등급별 가격 세팅",
@@ -155,7 +170,10 @@ function buildDetailCells(requestType: string, detail: any): (Cell | false)[] {
         cellRaw(
           "개별 이미지",
           (detail.images ?? [])
-            .map((img: any) => `${escapeHtml(imageTypeLabel(img.image_type))}: ${fileLinkValue(img.file_url)}`)
+            .map((img: any) => {
+              const typeLbl = imageTypeLabel(img.image_type);
+              return `${escapeHtml(typeLbl)}: ${fileLinkValue(img.file_url, { downloadName: dn(typeLbl, img.file_url) })}`;
+            })
             .join("<br/>") || "(없음)"
         ),
       ];
@@ -181,7 +199,7 @@ function buildDetailCells(requestType: string, detail: any): (Cell | false)[] {
         cell("노출 방식", detail.expose_type),
         cell("노출 기간", detail.start_at ? `${detail.start_at} ~ ${detail.end_at ?? ""}` : "항상 노출"),
         cell("오늘 하루 보지 않음", YES_NO(detail.hide_today_option)),
-        cellRaw("이미지", fileLinkValue(detail.image_url)),
+        cellRaw("이미지", fileLinkValue(detail.image_url, { downloadName: dn("이미지", detail.image_url) })),
         cell("이동 링크", detail.link_url),
       ];
 
@@ -189,12 +207,15 @@ function buildDetailCells(requestType: string, detail: any): (Cell | false)[] {
       return [
         cell("배너 위치", detail.banner_type),
         cell("배너 제목", detail.title),
-        cellRaw("이미지", fileLinkValue(detail.image_url)),
+        cellRaw("이미지", fileLinkValue(detail.image_url, { downloadName: dn("이미지", detail.image_url) })),
         cell("이동 링크", detail.link_url),
       ];
 
     case "etc":
-      return [cell("내용", detail.content), cellRaw("첨부파일", fileLinkValue(detail.file_url))];
+      return [
+        cell("내용", detail.content),
+        cellRaw("첨부파일", fileLinkValue(detail.file_url, { downloadName: dn("첨부파일", detail.file_url) })),
+      ];
 
     case "order_cancel":
       return [
@@ -217,7 +238,12 @@ function buildDetailCells(requestType: string, detail: any): (Cell | false)[] {
         cell("약국명", detail.pharmacy_name),
         cell("약사명", detail.pharmacist_name),
         cell("거래처코드", detail.vendor_code),
-        cellRaw("사업자등록증", fileLinkValue(detail.business_reg_file_url)),
+        cellRaw(
+          "사업자등록증",
+          fileLinkValue(detail.business_reg_file_url, {
+            downloadName: dn("사업자등록증", detail.business_reg_file_url),
+          })
+        ),
         cellRaw(
           "변경 항목",
           itemsTable(detail.items, [
@@ -301,6 +327,10 @@ export async function sendRequestNotification(params: {
   requesterName: string;
   requestType: string;
   createdAt: string;
+  /** DB의 원본 등록 시각(예: request.created_at). createdAt은 화면에 보여줄 형태로 이미
+   * 포맷된 문자열이라 날짜 계산에 쓸 수 없어서, 파일 다운로드 이름의 날짜 부분에 쓸 원본
+   * 값을 따로 받습니다. */
+  createdAtRaw: string;
   summary: string;
   erpDocNo?: string | null;
   detail?: any;
@@ -326,7 +356,10 @@ export async function sendRequestNotification(params: {
     cell("등록일시", params.createdAt),
     cell("전자결재 문서번호", params.erpDocNo),
     cell("요약", params.summary),
-    ...buildDetailCells(params.requestType, params.detail),
+    ...buildDetailCells(params.requestType, params.detail, {
+      requestNo: params.requestNo,
+      createdAtRaw: params.createdAtRaw,
+    }),
   ];
 
   // Power Automate가 표를 긁어 읽는 대신 이 JSON만 파싱하면 되도록, 화면에는 안 보이는

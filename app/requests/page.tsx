@@ -196,7 +196,12 @@ export default function RequestsPage() {
                 {r.erp_doc_no && (
                   <p className="mb-2 text-xs text-neutral-500">전자결재 문서번호 · {r.erp_doc_no}</p>
                 )}
-                <RequestDetail requestType={r.request_type} detail={detailById[r.id]} />
+                <RequestDetail
+                  requestType={r.request_type}
+                  detail={detailById[r.id]}
+                  requestNo={r.request_no}
+                  createdAt={r.created_at}
+                />
               </div>
             )}
           </div>

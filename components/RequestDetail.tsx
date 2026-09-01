@@ -1,6 +1,7 @@
 "use client";
 
 import { imageTypeLabel } from "@/lib/requestTypes";
+import { buildDownloadName } from "@/lib/downloadName";
 
 // 요청 조회 화면에서 항목을 펼쳤을 때 상세 내역을 보여주는 컴포넌트.
 // 요청 유형마다 상세 테이블 구조가 달라서, 유형별로 보여줄 항목을 정리합니다.
@@ -18,12 +19,14 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 // 클릭하면 새 탭에서 여는 대신 파일을 바로 다운로드합니다.
 // (원본 URL로 그냥 이동하면 브라우저가 이미지를 새 탭에 띄우기만 하고 저장은 안 시켜줘서,
 // 파일을 직접 받아온 뒤 다운로드를 강제로 트리거합니다.)
-async function downloadFile(url: string) {
+// downloadName을 넘기면 그 이름으로 저장되고(요청번호_항목명_날짜), 없으면 저장소의
+// 원본 파일명으로 저장됩니다.
+async function downloadFile(url: string, downloadName?: string) {
   try {
     const res = await fetch(url);
     const blob = await res.blob();
     const objectUrl = URL.createObjectURL(blob);
-    const fileName = decodeURIComponent(url.split("/").pop()?.split("?")[0] ?? "file");
+    const fileName = downloadName || decodeURIComponent(url.split("/").pop()?.split("?")[0] ?? "file");
     const a = document.createElement("a");
     a.href = objectUrl;
     a.download = fileName;
@@ -37,14 +40,14 @@ async function downloadFile(url: string) {
   }
 }
 
-function FileLink({ url }: { url?: string | null }) {
+function FileLink({ url, downloadName }: { url?: string | null; downloadName?: string }) {
   if (!url) return null;
   return (
     <a
       href={url}
       onClick={(e) => {
         e.preventDefault();
-        downloadFile(url);
+        downloadFile(url, downloadName);
       }}
       className="cursor-pointer text-[#12806f] underline"
     >
@@ -93,8 +96,20 @@ const YES_NO = (v: boolean) => (v ? "예" : "아니오");
 const STOCK_TYPE = (v: string) => (v === "by_stock" ? "재고량에 따름" : "무한정 판매");
 const SALE_PERIOD = (v: string) => (v === "fixed" ? "기간 있음" : "제한없음");
 
-export function RequestDetail({ requestType, detail }: { requestType: string; detail: any }) {
+export function RequestDetail({
+  requestType,
+  detail,
+  requestNo,
+  createdAt,
+}: {
+  requestType: string;
+  detail: any;
+  /** "파일 다운로드" 링크의 저장 파일명(요청번호_항목명_날짜)을 만드는 데 씁니다. */
+  requestNo?: string;
+  createdAt?: string;
+}) {
   if (!detail) return <p className="text-xs text-neutral-400">불러오는 중...</p>;
+  const dn = (label: string, url?: string | null) => buildDownloadName(requestNo, label, createdAt, url);
 
   switch (requestType) {
     case "new_product":
@@ -115,7 +130,10 @@ export function RequestDetail({ requestType, detail }: { requestType: string; de
           )}
           <Row label="금융비 사용" value={YES_NO(detail.use_finance_fee)} />
           {isPackage && <Row label="할인 판매 총액" value={detail.total_price} />}
-          <Row label="상세 설명 파일" value={<FileLink url={detail.description_file_url} />} />
+          <Row
+            label="상세 설명 파일"
+            value={<FileLink url={detail.description_file_url} downloadName={dn("상품 상세 설명 문구", detail.description_file_url)} />}
+          />
           {!isPackage && detail.pricing_tiers?.length > 0 && (
             <div className="mt-1">
               <p className="mb-1 text-xs font-medium text-neutral-500">수량/등급별 가격</p>
@@ -147,7 +165,8 @@ export function RequestDetail({ requestType, detail }: { requestType: string; de
               <p className="text-xs font-medium text-neutral-500">이미지</p>
               {detail.images.map((img: any, i: number) => (
                 <div key={i} className="text-xs">
-                  {imageTypeLabel(img.image_type)} · <FileLink url={img.file_url} />
+                  {imageTypeLabel(img.image_type)} ·{" "}
+                  <FileLink url={img.file_url} downloadName={dn(imageTypeLabel(img.image_type), img.file_url)} />
                 </div>
               ))}
             </div>
@@ -178,7 +197,7 @@ export function RequestDetail({ requestType, detail }: { requestType: string; de
           <Row label="노출 기간" value={detail.start_at ? `${detail.start_at} ~ ${detail.end_at ?? ""}` : null} />
           <Row label="오늘 하루 보지 않음" value={YES_NO(detail.hide_today_option)} />
           <Row label="이동 링크" value={detail.link_url} />
-          <Row label="이미지" value={<FileLink url={detail.image_url} />} />
+          <Row label="이미지" value={<FileLink url={detail.image_url} downloadName={dn("이미지", detail.image_url)} />} />
         </div>
       );
 
@@ -188,7 +207,7 @@ export function RequestDetail({ requestType, detail }: { requestType: string; de
           <Row label="배너 위치" value={detail.banner_type} />
           <Row label="배너 제목" value={detail.title} />
           <Row label="이동 링크" value={detail.link_url} />
-          <Row label="이미지" value={<FileLink url={detail.image_url} />} />
+          <Row label="이미지" value={<FileLink url={detail.image_url} downloadName={dn("이미지", detail.image_url)} />} />
         </div>
       );
 
@@ -196,7 +215,9 @@ export function RequestDetail({ requestType, detail }: { requestType: string; de
       return (
         <div className="flex flex-col gap-2">
           <p className="whitespace-pre-wrap text-sm text-neutral-800">{detail.content}</p>
-          {detail.file_url && <Row label="첨부파일" value={<FileLink url={detail.file_url} />} />}
+          {detail.file_url && (
+            <Row label="첨부파일" value={<FileLink url={detail.file_url} downloadName={dn("첨부파일", detail.file_url)} />} />
+          )}
         </div>
       );
 
@@ -224,7 +245,10 @@ export function RequestDetail({ requestType, detail }: { requestType: string; de
           <Row label="약국명" value={detail.pharmacy_name} />
           <Row label="약사명" value={detail.pharmacist_name} />
           <Row label="거래처코드" value={detail.vendor_code} />
-          <Row label="사업자등록증" value={<FileLink url={detail.business_reg_file_url} />} />
+          <Row
+            label="사업자등록증"
+            value={<FileLink url={detail.business_reg_file_url} downloadName={dn("사업자등록증", detail.business_reg_file_url)} />}
+          />
           <ItemsTable
             items={detail.items}
             columns={[

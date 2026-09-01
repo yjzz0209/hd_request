@@ -229,7 +229,12 @@ export default function AdminPage() {
                 {expandedId === r.id && (
                   <tr className="border-b border-neutral-100 bg-[#f0f1f2]/40">
                     <td colSpan={9} className="px-4 py-3">
-                      <RequestDetail requestType={r.request_type} detail={detailById[r.id]} />
+                      <RequestDetail
+                        requestType={r.request_type}
+                        detail={detailById[r.id]}
+                        requestNo={r.request_no}
+                        createdAt={r.created_at}
+                      />
                     </td>
                   </tr>
                 )}

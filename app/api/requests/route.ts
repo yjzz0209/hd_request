@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
       requesterName,
       requestType,
       createdAt: new Date(request.created_at).toLocaleString("ko-KR"),
+      createdAtRaw: request.created_at,
       summary: summary ?? "",
       erpDocNo: erpDocNo || null,
       detail,
