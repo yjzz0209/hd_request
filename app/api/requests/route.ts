@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
       requestId: request.id,
       requestNo: request.request_no,
       teamId,
+      targetTeamId: resolvedTargetTeam,
       requesterName,
       requestType,
       createdAt: new Date(request.created_at).toLocaleString("ko-KR"),

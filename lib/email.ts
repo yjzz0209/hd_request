@@ -320,10 +320,43 @@ function buildDetailCells(
 // 배포된 실제 주소로, 필요하면 나중에 NEXT_PUBLIC_SITE_URL 환경변수로 덮어쓸 수 있습니다.
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://hd-request.vercel.app";
 
+// 팀별 실제 수신 메일함. 이메일 주소 자체는 조직 개편 등으로 바뀔 수 있어서(비밀번호와
+// 마찬가지 이유로) 코드에 직접 넣지 않고 환경변수로 관리합니다. Vercel 프로젝트 설정 ->
+// Environment Variables 에 아래 3개를 추가해주세요.
+//   TEAM_EMAIL_MARKETING (OTC 전략 마케팅실)
+//   TEAM_EMAIL_INNOVATION (영업혁신팀)
+//   TEAM_EMAIL_DISTRIBUTION (유통전략팀)
+const TEAM_EMAIL_ENV_KEY: Record<string, string> = {
+  marketing: "TEAM_EMAIL_MARKETING",
+  innovation: "TEAM_EMAIL_INNOVATION",
+  distribution: "TEAM_EMAIL_DISTRIBUTION",
+};
+
+function teamEmail(teamId: string): string | undefined {
+  const key = TEAM_EMAIL_ENV_KEY[teamId];
+  const value = key ? process.env[key] : undefined;
+  return value || undefined;
+}
+
+// 요청을 보낸 팀에 따라 실제 알림 메일을 받을 주소를 정합니다. 유통전략팀은 어느 경우든
+// 항상 수신자에 포함됩니다(전체 현황을 유통전략팀 메일함에서 파악할 수 있도록).
+//   - 마케팅팀이 보낸 요청   -> 마케팅팀 + 유통전략팀
+//   - 혁신팀이 보낸 요청     -> 혁신팀 + 유통전략팀
+//   - 유통전략팀이 보낸 요청 -> "받는 팀"으로 선택된 팀 + 유통전략팀
+function resolveRecipients(teamId: string, targetTeamId: string): string[] {
+  const candidates =
+    teamId === "distribution"
+      ? [teamEmail(targetTeamId), teamEmail("distribution")]
+      : [teamEmail(teamId), teamEmail("distribution")];
+  return Array.from(new Set(candidates.filter((e): e is string => Boolean(e))));
+}
+
 export async function sendRequestNotification(params: {
   requestId: number;
   requestNo: string;
   teamId: string;
+  /** 이 요청을 실제로 받는 팀. 수신 메일 주소를 정하는 데 씁니다. */
+  targetTeamId: string;
   requesterName: string;
   requestType: string;
   createdAt: string;
@@ -336,11 +369,11 @@ export async function sendRequestNotification(params: {
   detail?: any;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
-  const to = process.env.REQUEST_NOTIFICATION_EMAIL;
+  const to = resolveRecipients(params.teamId, params.targetTeamId);
 
-  if (!apiKey || !to) {
+  if (!apiKey || to.length === 0) {
     console.warn(
-      "[email] RESEND_API_KEY 또는 REQUEST_NOTIFICATION_EMAIL 이 설정되지 않아 이메일 발송을 건너뜁니다."
+      `[email] RESEND_API_KEY 가 없거나 ${params.teamId} -> ${params.targetTeamId} 요청을 받을 팀 메일 주소가 설정되지 않아 이메일 발송을 건너뜁니다.`
     );
     return { skipped: true };
   }
