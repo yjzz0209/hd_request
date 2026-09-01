@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Field, TextInput, PrimaryButton } from "../ui";
 import { RepeatRows } from "../RepeatRows";
-import { FileUploadField } from "../FileUploadField";
+import { FileUploadField, useUploadGuard } from "../FileUploadField";
 
 type ChangeRow = { field_name: string; old_value: string; new_value: string };
 
@@ -22,6 +22,7 @@ export function PharmacyInfoChangeForm({
   const [vendorCode, setVendorCode] = useState("");
   const [businessRegFileUrl, setBusinessRegFileUrl] = useState("");
   const [rows, setRows] = useState<ChangeRow[]>([emptyRow()]);
+  const { anyUploading, onUploadingChange } = useUploadGuard();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -61,6 +62,7 @@ export function PharmacyInfoChangeForm({
         accept=".pdf,.jpg,.jpeg,.png"
         titleHint={pharmacyName}
         onUploaded={(url) => setBusinessRegFileUrl(url)}
+        onUploadingChange={onUploadingChange}
       />
 
       <Field label="변경 항목" hint="변경하려는 항목명과 기존 값, 변경될 값을 입력하세요. 여러 개면 행을 추가하세요.">
@@ -95,8 +97,8 @@ export function PharmacyInfoChangeForm({
         />
       </Field>
 
-      <PrimaryButton type="submit" disabled={submitting}>
-        {submitting ? "제출 중..." : "요청 제출"}
+      <PrimaryButton type="submit" disabled={submitting || anyUploading}>
+        {anyUploading ? "파일 업로드 중..." : submitting ? "제출 중..." : "요청 제출"}
       </PrimaryButton>
     </form>
   );

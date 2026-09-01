@@ -4,6 +4,8 @@ import { getSupabaseServerClient } from "@/lib/supabaseServer";
 import { loadDetailForRequest } from "@/lib/requestDetail";
 import { STATUS_LABEL, teamName, typeLabel } from "@/lib/requestTypes";
 import { buildImageFields, ImageField } from "@/lib/requestImageFields";
+import { PRETENDARD_REGULAR_BASE64 } from "./pretendardRegularBase64";
+import { PRETENDARD_BOLD_BASE64 } from "./pretendardBoldBase64";
 
 // GET /api/requests/:id/image -> 알림 이메일의 "표 이미지로 저장" 링크가 여는 주소.
 // 이메일 자체는 자바스크립트를 못 써서 그 자리에서 이미지를 만들 수 없기 때문에, 서버가 미리
@@ -13,22 +15,32 @@ import { buildImageFields, ImageField } from "@/lib/requestImageFields";
 const WIDTH = 800;
 
 // 이미지 생성기(satori)는 기본 폰트에 한글이 없어서 아무 설정 없이 쓰면 글자가 네모(□)로
-// 깨집니다. 그래서 한글을 지원하는 Pretendard 폰트 파일을 이 라우트 폴더에 함께 두고
-// 직접 읽어서 넘겨줍니다. new URL(..., import.meta.url) 패턴은 Next.js가 빌드할 때 이
-// 파일들을 서버리스 함수 번들에 자동으로 포함시켜주는, Vercel이 공식적으로 안내하는 방식입니다.
-async function loadFonts() {
-  const [regular, bold] = await Promise.all([
-    fetch(new URL("./Pretendard-Regular.ttf", import.meta.url)).then((res) => res.arrayBuffer()),
-    fetch(new URL("./Pretendard-Bold.ttf", import.meta.url)).then((res) => res.arrayBuffer()),
-  ]);
+// 깨집니다. 그래서 한글을 지원하는 Pretendard 폰트가 필요한데, 배포 환경(Vercel)마다
+// 폰트 "파일"을 찾는 방식(new URL(..., import.meta.url) + fetch, 또는 fs로 직접 읽기)이
+// 500 에러로 이어져서, 아예 파일시스템에 의존하지 않도록 폰트를 base64 문자열로 코드에
+// 직접 담아뒀습니다(./pretendardRegularBase64.ts, ./pretendardBoldBase64.ts). 이 방식은
+// 배포 환경과 무관하게 항상 똑같이 동작합니다.
+function loadFonts() {
   return [
-    { name: "Pretendard", data: regular, weight: 400 as const, style: "normal" as const },
-    { name: "Pretendard", data: bold, weight: 700 as const, style: "normal" as const },
+    { name: "Pretendard", data: Buffer.from(PRETENDARD_REGULAR_BASE64, "base64"), weight: 400 as const, style: "normal" as const },
+    { name: "Pretendard", data: Buffer.from(PRETENDARD_BOLD_BASE64, "base64"), weight: 700 as const, style: "normal" as const },
   ];
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+  try {
+    return await renderImage(await params);
+  } catch (e) {
+    // 원인을 알 수 없는 크래시는 Vercel의 빈 500 에러 화면으로 나가버려서 원인 파악이
+    // 어렵기 때문에, 서버 로그에 자세히 남기고 화면에는 안내 문구를 내려줍니다.
+    console.error("[표 이미지로 저장] 생성 실패", e);
+    return new Response("표 이미지를 만드는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.", {
+      status: 500,
+    });
+  }
+}
+
+async function renderImage({ id }: { id: string }) {
   const supabase = getSupabaseServerClient();
 
   const { data: r, error } = await supabase.from("requests").select("*").eq("id", id).single();
@@ -58,7 +70,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
   height += 60;
 
-  const fonts = await loadFonts();
+  const fonts = loadFonts();
 
   return new ImageResponse(
     (

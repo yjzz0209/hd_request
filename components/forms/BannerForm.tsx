@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Field, TextInput, Select, PrimaryButton } from "../ui";
-import { FileUploadField } from "../FileUploadField";
+import { FileUploadField, useUploadGuard } from "../FileUploadField";
 
 export function BannerForm({
   onSubmit,
@@ -11,6 +11,7 @@ export function BannerForm({
   onSubmit: (detail: any, summary: string) => void;
   submitting: boolean;
 }) {
+  const { anyUploading, onUploadingChange } = useUploadGuard();
   const [bannerType, setBannerType] = useState<"pre_login" | "main" | "middle">("main");
   const [title, setTitle] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -38,14 +39,20 @@ export function BannerForm({
         <TextInput required value={title} onChange={(e) => setTitle(e.target.value)} />
       </Field>
 
-      <FileUploadField label="배너 이미지" accept="image/*" titleHint={title} onUploaded={(url) => setImageUrl(url)} />
+      <FileUploadField
+        label="배너 이미지"
+        accept="image/*"
+        titleHint={title}
+        onUploaded={(url) => setImageUrl(url)}
+        onUploadingChange={onUploadingChange}
+      />
 
       <Field label="이동 링크">
         <TextInput type="url" placeholder="https://" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} />
       </Field>
 
-      <PrimaryButton type="submit" disabled={submitting || !imageUrl}>
-        {submitting ? "제출 중..." : "요청 제출"}
+      <PrimaryButton type="submit" disabled={submitting || anyUploading || !imageUrl}>
+        {anyUploading ? "파일 업로드 중..." : submitting ? "제출 중..." : "요청 제출"}
       </PrimaryButton>
     </form>
   );

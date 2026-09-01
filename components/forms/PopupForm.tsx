@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Field, TextInput, Select, PrimaryButton } from "../ui";
-import { FileUploadField } from "../FileUploadField";
+import { FileUploadField, useUploadGuard } from "../FileUploadField";
 
 export function PopupForm({
   onSubmit,
@@ -11,6 +11,7 @@ export function PopupForm({
   onSubmit: (detail: any, summary: string) => void;
   submitting: boolean;
 }) {
+  const { anyUploading, onUploadingChange } = useUploadGuard();
   const [exposePc, setExposePc] = useState(true);
   const [exposeMobile, setExposeMobile] = useState(true);
   const [title, setTitle] = useState("");
@@ -81,14 +82,20 @@ export function PopupForm({
         </Select>
       </Field>
 
-      <FileUploadField label="업로드 이미지" accept="image/*" titleHint={title} onUploaded={(url) => setImageUrl(url)} />
+      <FileUploadField
+        label="업로드 이미지"
+        accept="image/*"
+        titleHint={title}
+        onUploaded={(url) => setImageUrl(url)}
+        onUploadingChange={onUploadingChange}
+      />
 
       <Field label="이동 링크">
         <TextInput type="url" placeholder="https://" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} />
       </Field>
 
-      <PrimaryButton type="submit" disabled={submitting || !imageUrl}>
-        {submitting ? "제출 중..." : "요청 제출"}
+      <PrimaryButton type="submit" disabled={submitting || anyUploading || !imageUrl}>
+        {anyUploading ? "파일 업로드 중..." : submitting ? "제출 중..." : "요청 제출"}
       </PrimaryButton>
     </form>
   );

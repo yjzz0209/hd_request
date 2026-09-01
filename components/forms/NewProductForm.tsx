@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Field, TextInput, Select, PrimaryButton } from "../ui";
 import { RepeatRows } from "../RepeatRows";
-import { FileUploadField } from "../FileUploadField";
+import { FileUploadField, useUploadGuard } from "../FileUploadField";
 import { IMAGE_TYPES } from "@/lib/requestTypes";
 
 type Tier = { min_qty: string; grade: "M" | "MS" | "MS+"; price: string };
@@ -29,6 +29,9 @@ export function NewProductForm({
   const [descriptionFileUrl, setDescriptionFileUrl] = useState("");
   const [tiers, setTiers] = useState<Tier[]>([{ min_qty: "1", grade: "M", price: "" }]);
   const [images, setImages] = useState<ImageRow[]>([]);
+  // 파일 업로드가 끝나기 전에 제출 버튼을 누르면 이미지 없이 요청이 등록되어버릴 수 있어서,
+  // 업로드 중인 필드가 하나라도 있으면 제출 버튼을 막아둡니다.
+  const { anyUploading, onUploadingChange } = useUploadGuard();
 
   function setImage(imageType: string, url: string, name: string) {
     setImages((prev) => [...prev.filter((i) => i.image_type !== imageType), { image_type: imageType, file_url: url, file_name: name }]);
@@ -152,6 +155,7 @@ export function NewProductForm({
             hideLabel
             titleHint={productName}
             onUploaded={(url, name) => setImage("general", url, name)}
+            onUploadingChange={onUploadingChange}
           />
           <div className="grid grid-cols-2 gap-3">
             {IMAGE_TYPES.filter((it) => it.key !== "general").map((it) => (
@@ -160,6 +164,7 @@ export function NewProductForm({
                   label={it.label}
                   titleHint={productName}
                   onUploaded={(url, name) => setImage(it.key, url, name)}
+                  onUploadingChange={onUploadingChange}
                 />
               </div>
             ))}
@@ -172,10 +177,11 @@ export function NewProductForm({
         accept=".doc,.docx"
         titleHint={productName}
         onUploaded={(url) => setDescriptionFileUrl(url)}
+        onUploadingChange={onUploadingChange}
       />
 
-      <PrimaryButton type="submit" disabled={submitting}>
-        {submitting ? "제출 중..." : "요청 제출"}
+      <PrimaryButton type="submit" disabled={submitting || anyUploading}>
+        {anyUploading ? "파일 업로드 중..." : submitting ? "제출 중..." : "요청 제출"}
       </PrimaryButton>
     </form>
   );
