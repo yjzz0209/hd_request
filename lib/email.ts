@@ -452,7 +452,7 @@ export async function sendRequestNotification(params: {
   const attachmentJson = JSON.stringify(payload, null, 2);
 
   return resend.emails.send({
-    from: "업무협조요청시스템 <noreply@today-pharm.co.kr>",
+    from: "업무협조요청시스템 <noreply@today-pharm.com>",
     to,
     subject: `[업무협조요청] ${typeLabel(params.requestType)} - ${teamName(
       params.teamId
@@ -512,7 +512,7 @@ export async function sendInquiryNotification(params: {
   `;
 
   return resend.emails.send({
-    from: "업무협조요청시스템 <noreply@today-pharm.co.kr>",
+    from: "업무협조요청시스템 <noreply@today-pharm.com>",
     to,
     subject: `[문의하기] ${params.name}`,
     html,
